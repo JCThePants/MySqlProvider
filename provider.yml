@@ -1,0 +1,5 @@
+name: MySqlProvider
+version: 0.1-beta
+logical-version: 0
+description: 'Provides MySQL database support'
+main: com.jcwhatever.nucleus.providers.mysql.MySqlProvider

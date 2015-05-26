@@ -1,0 +1,74 @@
+/**
+ * SETTINGS
+ */
+ext.jcBuildSettings = [
+        projectName : 'MySqlProvider',
+        majorVersion : '0',
+        minorVersion : '1',
+        buildBy : null, // auto filled
+        buildNumber : null, // auto filled when using teamcity
+        mainClass : null,
+
+// target Java version
+        javaVersion : 1.7,
+        jdkHome : null,
+
+// Maven repository url's
+        mavenRepositories : [
+                'https://github.com/JCThePants/mvn-repo/raw/master',
+                'https://hub.spigotmc.org/nexus/content/repositories/snapshots/',
+                'https://oss.sonatype.org/content/groups/public/'
+        ],
+
+// provided dependencies (provided by the runtime environment)
+        providedDependsFiles : null,
+        providedDepends : [
+                'org.spigotmc:spigot-api:1.8.3-R0.1-SNAPSHOT',
+                'com.google.code.findbugs:jsr305:3.0.0',
+                'com.jcwhatever.bukkit:NucleusFramework:+'
+        ],
+
+// compile dependencies (compiled into output jar)
+        compileDependsFiles : null,
+        compileDepends : null,
+
+// include files in output jar
+        includeFiles : [
+                'provider.yml',
+                'LICENSE.txt'
+        ],
+
+// include test classes
+        testIncludes : null,
+
+// exclude test classes
+        testExcludes : null,
+
+// test dependencies
+        testDepends : null,
+        testRuntimeDepends : null,
+
+// dependencies that should always be downloaded (cached for 30 seconds)
+        snapshotDepends : [
+                'com.jcwhatever.bukkit:NucleusFramework:+'
+        ],
+
+// source directory
+        sourceDir : 'src',
+
+// resource directory
+        resourceDir : null,
+
+// test source directory
+        testSourceDir : null,
+
+// test resource directory
+        testResourceDir : null,
+
+// git repo url (without https://)
+        gitUrl : 'github.com/JCThePants/MySqlProvider.git'
+]
+
+apply from : 'https://github.com/JCThePants/mvn-repo/raw/master/jcbuild.java.gradle.plugin'
+apply from : 'https://github.com/JCThePants/mvn-repo/raw/master/jcmaven.gradle.plugin'
+apply from : 'https://github.com/JCThePants/mvn-repo/raw/master/doxygen.gradle.plugin'
