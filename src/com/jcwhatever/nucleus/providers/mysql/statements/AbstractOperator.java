@@ -12,8 +12,8 @@ import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * Abstract implementation of {@link ISqlOperator}
  */
  abstract class AbstractOperator<T> implements ISqlOperator<T> {
 
@@ -22,6 +22,11 @@ import javax.annotation.Nullable;
     private final Table _table;
     private final List<CompoundValue> _compoundValues;
 
+    /**
+     * Constructor.
+     *
+     * @param statement  The statement the operator applies to.
+     */
     public AbstractOperator(Statement statement) {
         PreCon.notNull(statement);
 
@@ -30,6 +35,13 @@ import javax.annotation.Nullable;
         _compoundValues = null;
     }
 
+    /**
+     * Constructor.
+     *
+     * @param statement  The statement the operator applies to.
+     * @param table      The current table.
+     * @param compound   The current compound data values for the statement.
+     */
     public AbstractOperator(Statement statement, Table table,
                             List<CompoundValue> compound) {
         _statement = statement;
@@ -37,8 +49,14 @@ import javax.annotation.Nullable;
         _compoundValues = compound;
     }
 
+    /**
+     * Invoked to assert that the statement is not finalized.
+     */
     protected abstract void assertNotFinalized();
 
+    /**
+     * Invoked to get the conditional operator.
+     */
     protected abstract T getConditionOperator();
 
     @Override

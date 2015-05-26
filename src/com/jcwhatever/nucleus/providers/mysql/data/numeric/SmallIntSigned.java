@@ -2,8 +2,8 @@ package com.jcwhatever.nucleus.providers.mysql.data.numeric;
 
 import com.jcwhatever.nucleus.providers.mysql.data.AbstractDataType;
 
-/*
- * 
+/**
+ * 16-bit signed integer.
  */
 public class SmallIntSigned extends AbstractDataType {
 

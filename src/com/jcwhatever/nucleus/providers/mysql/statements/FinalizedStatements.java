@@ -16,36 +16,61 @@ import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * A list of {@link FinalizedStatement}'s to be executed.
  */
 public class FinalizedStatements extends ArrayList<FinalizedStatement> {
 
     private final ISqlDatabase _database;
     private final FutureResultAgent<ISqlResult> _agent = new FutureResultAgent<>();
 
+    /**
+     * Constructor.
+     *
+     * <p>Initial capacity of 0.</p>
+     *
+     * @param database  The database the statements are for.
+     */
     public FinalizedStatements(ISqlDatabase database) {
         super(0);
 
         _database = database;
     }
 
+    /**
+     * Constructor.
+     *
+     * @param database  The database the statements are for.
+     * @param capacity  The initial capacity of the list.
+     */
     public FinalizedStatements(ISqlDatabase database, int capacity) {
         super(capacity);
 
         _database = database;
     }
 
+    /**
+     * Constructor.
+     *
+     * @param database    The database the statements are for.
+     * @param statements  The initial statements.
+     */
     public FinalizedStatements(ISqlDatabase database, Collection<FinalizedStatement> statements) {
         super(statements);
 
         _database = database;
     }
 
+    /**
+     * Get the database the statements in the list are for.
+     */
     public ISqlDatabase getDatabase() {
         return _database;
     }
 
+    /**
+     * Get a future result agent used when the statements are executed.
+     */
     public FutureResultAgent<ISqlResult> getAgent() {
         return _agent;
     }
@@ -57,6 +82,16 @@ public class FinalizedStatements extends ArrayList<FinalizedStatement> {
         return super.add(statement);
     }
 
+    /**
+     * Execute all statements in the list on the current thread.
+     *
+     * @param transactionDepth  The initial transaction depth. Transaction is only
+     *                          started and ended at 0.
+     *
+     * @return  The result of the execution.
+     *
+     * @throws SQLException
+     */
     public ExecuteResult executeNow(int transactionDepth) throws SQLException {
 
         ExecuteResult result = new ExecuteResult(size(), _agent);
@@ -151,18 +186,30 @@ public class FinalizedStatements extends ArrayList<FinalizedStatement> {
         return this;
     }
 
+    /**
+     * Implementation of {@link ISqlResult}.
+     */
     public static class ExecuteResult implements ISqlResult {
 
         private final List<ISqlQueryResult> results;
         private final List<Integer> rowsUpdated;
         private final FutureResultAgent<ISqlResult> agent;
 
+        /**
+         * Constructor.
+         *
+         * @param size   The expected size of the results.
+         * @param agent  The result agent for the results.
+         */
         ExecuteResult(int size, FutureResultAgent<ISqlResult> agent) {
             this.results = new ArrayList<>(size);
             this.rowsUpdated = new ArrayList<>(size);
             this.agent = agent;
         }
 
+        /**
+         * Get the future result agent.
+         */
         public FutureResultAgent<ISqlResult> getAgent() {
             return agent;
         }

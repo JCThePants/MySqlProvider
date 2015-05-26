@@ -2,8 +2,8 @@ package com.jcwhatever.nucleus.providers.mysql.data;
 
 import com.jcwhatever.nucleus.providers.sql.ISqlDbType;
 
-/*
- * 
+/**
+ * Abstract implementation of {@link ISqlDbType}.
  */
 public abstract class AbstractDataType implements ISqlDbType {
 

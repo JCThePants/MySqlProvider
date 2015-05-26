@@ -20,8 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * Implementation of {@link ISqlDelete}.
  */
 public class Delete implements ISqlDelete {
 
@@ -36,6 +36,12 @@ public class Delete implements ISqlDelete {
     private boolean _isFinalized;
     private FinalizedStatement _finalized;
 
+    /**
+     * Constructor.
+     *
+     * @param table      The table the statement is for.
+     * @param statement  The current statement context. Null to start a new one.
+     */
     public Delete(Table table, @Nullable Statement statement) {
         PreCon.notNull(table);
 

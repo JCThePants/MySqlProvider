@@ -6,8 +6,8 @@ import com.jcwhatever.nucleus.utils.ThreadSingletons.ISingletonFactory;
 
 import java.util.Queue;
 
-/*
- * 
+/**
+ * Singleton buffers per thread for local context use only.
  */
 public class TempBuffers {
 
@@ -26,14 +26,6 @@ public class TempBuffers {
                 @Override
                 public StringBuilder create(Thread thread) {
                     return new StringBuilder(100);
-                }
-            });
-
-    public static final ThreadSingletons<byte[]> BYTES = new ThreadSingletons<>(
-            new ISingletonFactory<byte[]>() {
-                @Override
-                public byte[] create(Thread thread) {
-                    return new byte[4096];
                 }
             });
 }

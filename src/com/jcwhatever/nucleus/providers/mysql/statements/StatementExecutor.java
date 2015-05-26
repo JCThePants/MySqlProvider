@@ -15,8 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 
-/*
- * 
+/**
+ * Executes sql statements from asynchronous threads.
  */
 public class StatementExecutor implements IDisposable {
 
@@ -26,6 +26,11 @@ public class StatementExecutor implements IDisposable {
     private int _executorIndex;
     private boolean _isDisposed;
 
+    /**
+     * Constructor.
+     *
+     * @param totalExecutors  The total number of executors/threads.
+     */
     public StatementExecutor(int totalExecutors) {
         PreCon.positiveNumber(totalExecutors);
 
@@ -48,6 +53,12 @@ public class StatementExecutor implements IDisposable {
         Scheduler.runTaskRepeat(Nucleus.getPlugin(), 1, 1, new MySqlResultProducer());
     }
 
+    /**
+     * Execute a transaction.
+     *
+     * @param transaction  The transaction to execute.
+     * @param agent        The result agent.
+     */
     public void execute(Transaction transaction, FutureResultAgent<ISqlResult> agent) {
         PreCon.notNull(transaction);
         PreCon.notNull(agent);
@@ -58,6 +69,12 @@ public class StatementExecutor implements IDisposable {
         addStatement(new QueuedTransaction(transaction, agent));
     }
 
+    /**
+     * Execute a collection of finalized statements.
+     *
+     * @param statements  The statements to execute.
+     * @param agent       The result agent.
+     */
     public void execute(FinalizedStatements statements, FutureResultAgent<ISqlResult> agent) {
         PreCon.notNull(statements);
         PreCon.notNull(agent);

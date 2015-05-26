@@ -48,6 +48,12 @@ public class StatementResult implements ISqlQueryResult {
     private final String[] _columns;
     private boolean _hasCalledNext;
 
+    /**
+     * Constructor.
+     *
+     * @param statement  The finalized statement the result is for.
+     * @param result     The result set.
+     */
     public StatementResult(FinalizedStatement statement, ResultSet result) {
         PreCon.notNull(statement);
         PreCon.notNull(result);
@@ -59,6 +65,9 @@ public class StatementResult implements ISqlQueryResult {
         _result = result;
     }
 
+    /**
+     * Get the finalized statement the result is from.
+     */
     public FinalizedStatement getFinalizedStatement() {
         return _statement;
     }

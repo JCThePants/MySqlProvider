@@ -23,8 +23,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
-/*
- * 
+/**
+ * Implementation wrapper for {@link Connection}'s
  */
 public class MySqlConnection implements Connection {
 
@@ -34,6 +34,14 @@ public class MySqlConnection implements Connection {
     private final String _password;
     private final ThreadConnections _pool;
 
+    /**
+     * Constructor.
+     *
+     * @param address   The database address.
+     * @param name      The name of the database.
+     * @param user      The login name.
+     * @param password  The login password.
+     */
     public MySqlConnection(String address, String name, String user, String password) {
 
         _address = address;

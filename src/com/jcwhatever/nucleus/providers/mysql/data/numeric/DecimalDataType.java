@@ -4,8 +4,8 @@ import com.jcwhatever.nucleus.providers.mysql.data.AbstractDataType;
 
 import java.math.BigDecimal;
 
-/*
- * 
+/**
+ * Decimal data type.
  */
 public class DecimalDataType extends AbstractDataType {
 

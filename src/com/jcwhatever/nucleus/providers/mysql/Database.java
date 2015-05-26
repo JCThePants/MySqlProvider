@@ -34,6 +34,7 @@ public class Database implements ISqlDatabase {
 
     /**
      * Constructor.
+     *
      * @param address   The database address.
      * @param name      The name of the database to connect to.
      * @param user      The user name to connect with.
@@ -46,6 +47,13 @@ public class Database implements ISqlDatabase {
         _compoundManager = new CompoundDataManager(this);
     }
 
+    /**
+     * Get the compound data manager.
+     */
+    public CompoundDataManager getCompoundManager() {
+        return _compoundManager;
+    }
+
     @Override
     public String getName() {
         return _name;
@@ -54,10 +62,6 @@ public class Database implements ISqlDatabase {
     @Override
     public MySqlConnection getConnection() {
         return _connection;
-    }
-
-    public CompoundDataManager getCompoundManager() {
-        return _compoundManager;
     }
 
     @Override

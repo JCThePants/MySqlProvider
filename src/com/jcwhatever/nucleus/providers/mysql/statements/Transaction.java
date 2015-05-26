@@ -12,12 +12,20 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 /**
- * Sql Transaction
+ * Implementation of {@link ISqlTransaction}.
+ *
+ * <p>Ensures a collection of {@link FinalizedStatements} are executed as
+ * a transaction. Dependent upon the affected tables supporting transactions.</p>
  */
 public class Transaction extends ArrayList<FinalizedStatements> implements ISqlTransaction {
 
     private final ISqlDatabase _database;
 
+    /**
+     * Constructor.
+     *
+     * @param database  The database the statements are for.
+     */
     public Transaction(ISqlDatabase database) {
         super(10);
 

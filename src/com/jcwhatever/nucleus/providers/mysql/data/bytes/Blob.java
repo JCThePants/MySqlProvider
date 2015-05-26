@@ -2,8 +2,8 @@ package com.jcwhatever.nucleus.providers.mysql.data.bytes;
 
 import com.jcwhatever.nucleus.providers.mysql.data.AbstractDataType;
 
-/*
- * 
+/**
+ * Blob data type.
  */
 public class Blob extends AbstractDataType {
 

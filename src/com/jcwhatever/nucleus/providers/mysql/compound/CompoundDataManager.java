@@ -10,8 +10,8 @@ import org.bukkit.util.Vector;
 
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * Manages compound data handlers.
  */
 public class CompoundDataManager {
 
@@ -20,6 +20,11 @@ public class CompoundDataManager {
     private final VectorHandler _vectorHandler;
     private final ItemStackHandler _itemStackHandler;
 
+    /**
+     * Constructor.
+     *
+     * @param database  The database the manager is for.
+     */
     public CompoundDataManager(ISqlDatabase database) {
         PreCon.notNull(database);
 
@@ -29,6 +34,14 @@ public class CompoundDataManager {
         _itemStackHandler = new ItemStackHandler(database);
     }
 
+    /**
+     * Get the data handler for the specified data type.
+     *
+     * @param dataType  The data type.
+     *
+     * @return  The data handler or null if one could not be found for the
+     * data type.
+     */
     @Nullable
     public ICompoundDataHandler getHandler(ISqlDbType dataType) {
         PreCon.notNull(dataType);
@@ -47,14 +60,23 @@ public class CompoundDataManager {
         return null;
     }
 
+    /**
+     * Get the {@link Location} data handler.
+     */
     public LocationHandler getLocationHandler() {
         return _locationHandler;
     }
 
+    /**
+     * Get the {@link Vector} data handler.
+     */
     public VectorHandler getVectorHandler() {
         return _vectorHandler;
     }
 
+    /**
+     * Get the {@link ItemStack} data handler.
+     */
     public ItemStackHandler getItemStackHandler() {
         return _itemStackHandler;
     }

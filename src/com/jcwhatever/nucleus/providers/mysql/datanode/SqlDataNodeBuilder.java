@@ -16,8 +16,8 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * Implementation of {@link ISqlDataNodeBuilder}.
  */
 public class SqlDataNodeBuilder implements ISqlDataNodeBuilder {
 
@@ -30,6 +30,11 @@ public class SqlDataNodeBuilder implements ISqlDataNodeBuilder {
     private ISqlQueryResult _result;
     private Object _pKeyValue;
 
+    /**
+     * Constructor.
+     *
+     * @param plugin  The resulting data nodes owning plugin.
+     */
     public SqlDataNodeBuilder(Plugin plugin) {
         PreCon.notNull(plugin);
 

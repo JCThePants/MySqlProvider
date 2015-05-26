@@ -15,8 +15,8 @@ import java.util.Date;
 import java.util.UUID;
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * A statement that is finalized and ready to be executed.
  */
 public class FinalizedStatement implements ISqlStatement {
 
@@ -28,6 +28,14 @@ public class FinalizedStatement implements ISqlStatement {
     private final String[] _columns;
     private final boolean _isPrefixed;
 
+    /**
+     * Constructor.
+     *
+     * @param connection  The connection to execute the statement with.
+     * @param type        The statement type. Valid values are
+     *                    {@link StatementType#TRANSACTION_START} or
+     *                    {@link StatementType#TRANSACTION_COMMIT}
+     */
     public FinalizedStatement(Connection connection, StatementType type) {
 
         PreCon.notNull(connection);
@@ -43,6 +51,17 @@ public class FinalizedStatement implements ISqlStatement {
         _isPrefixed = true;
     }
 
+    /**
+     * Constructor.
+     *
+     * @param table       The table the statement is for.
+     * @param sql         The sql statement string.
+     * @param values      The statement values.
+     * @param columns     The names of the columns the statement is affecting.
+     * @param type        The statement type.
+     * @param isPrefixed  True if the column names in the statement have been prefixed with
+     *                    the table name.
+     */
     public FinalizedStatement(Table table,
                               String sql, Object[] values, String[] columns,
                               StatementType type, boolean isPrefixed) {
@@ -50,6 +69,17 @@ public class FinalizedStatement implements ISqlStatement {
         this(table, table.getDatabase().getConnection(), sql, values, columns, type, isPrefixed);
     }
 
+    /**
+     * Constructor.
+     *
+     * @param connection  The connection to execute the statement using.
+     * @param sql         The sql statement string.
+     * @param values      The statement values.
+     * @param columns     The names of the columns the statement is affecting.
+     * @param type        The statement type.
+     * @param isPrefixed  True if the column names in the statement have been prefixed with
+     *                    the table name.
+     */
     public FinalizedStatement(Connection connection,
                               String sql, Object[] values, String[] columns,
                               StatementType type, boolean isPrefixed) {
@@ -57,6 +87,18 @@ public class FinalizedStatement implements ISqlStatement {
         this(null, connection, sql, values, columns, type, isPrefixed);
     }
 
+    /**
+     * Private constructor.
+     *
+     * @param table       The table the statement is for.
+     * @param connection  The connection to execute the statement using.
+     * @param sql         The sql statement string.
+     * @param values      The statement values.
+     * @param columns     The names of the columns the statement is affecting.
+     * @param type        The statement type.
+     * @param isPrefixed  True if the column names in the statement have been prefixed with
+     *                    the table name.
+     */
     private FinalizedStatement(@Nullable Table table, Connection connection,
                               String sql, Object[] values, String[] columns,
                                StatementType type, boolean isPrefixed) {
@@ -78,30 +120,6 @@ public class FinalizedStatement implements ISqlStatement {
         _isPrefixed = isPrefixed;
     }
 
-    @Nullable
-    public Table getTable() {
-        return _table;
-    }
-
-    public Connection getConnection() {
-        return _connection;
-    }
-
-    public boolean isPrefixed() {
-        return _isPrefixed;
-    }
-
-    public StatementType getType() {
-        return _type;
-    }
-
-    public String[] getColumns() {
-        if (_columns == null)
-            return ArrayUtils.EMPTY_STRING_ARRAY;
-
-        return _columns;
-    }
-
     @Override
     public String getStatement() {
         return _sql;
@@ -115,6 +133,58 @@ public class FinalizedStatement implements ISqlStatement {
         return _values;
     }
 
+    /**
+     * Get the table the statement applies to.
+     *
+     * @return  The table or null if the statement is not
+     * for a specific table.
+     */
+    @Nullable
+    public Table getTable() {
+        return _table;
+    }
+
+    /**
+     * Get the statements connection.
+     */
+    public Connection getConnection() {
+        return _connection;
+    }
+
+    /**
+     * Determine if the statement column names have been auto
+     * prefixed with the table names.
+     */
+    public boolean isPrefixed() {
+        return _isPrefixed;
+    }
+
+    /**
+     * Get the statement type.
+     */
+    public StatementType getType() {
+        return _type;
+    }
+
+    /**
+     * Get the names of the columns affected in the statement.
+     *
+     * <p>The names are as used to construct the statement without modification.</p>
+     */
+    public String[] getColumns() {
+        if (_columns == null)
+            return ArrayUtils.EMPTY_STRING_ARRAY;
+
+        return _columns;
+    }
+
+    /**
+     * Execute the query on the current thread.
+     *
+     * @return  The query result.
+     *
+     * @throws SQLException
+     */
     public ISqlQueryResult executeQuery() throws SQLException {
 
         PreparedStatement prepared = prepareStatement();
@@ -122,11 +192,21 @@ public class FinalizedStatement implements ISqlStatement {
         return new StatementResult(this, resultSet);
     }
 
+    /**
+     * Execute the statement on the current thread.
+     *
+     * @throws SQLException
+     */
     public void execute() throws SQLException {
         PreparedStatement prepared = prepareStatement();
         prepared.execute();
     }
 
+    /**
+     * Generate a {@link PreparedStatement}.
+     *
+     * @throws SQLException
+     */
     public PreparedStatement prepareStatement() throws SQLException {
 
         PreparedStatement statement = getConnection().prepareStatement(_sql);

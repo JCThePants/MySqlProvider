@@ -59,8 +59,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * Implementation of {@link ISqlDataNode}.
  */
 public class SqlDataNode extends MemoryDataNode implements ISqlDataNode {
 
@@ -68,6 +68,14 @@ public class SqlDataNode extends MemoryDataNode implements ISqlDataNode {
     private final Set<String> _dirtyNodes;
     private final Map<ISqlDatabase, Map<ISqlTable, Multimap<Object, SqlNodeContext>>> _contextByDb;
 
+    private IScheduledTask _saveTask;
+
+    /**
+     * Constructor.
+     *
+     * @param plugin    The owning plugin.
+     * @param valueMap  Map of node names to sql values.
+     */
     public SqlDataNode(Plugin plugin,
                        Map<String, SqlNodeValue> valueMap) {
         super(plugin);
@@ -150,8 +158,6 @@ public class SqlDataNode extends MemoryDataNode implements ISqlDataNode {
         save();
         return true;
     }
-
-    private IScheduledTask _saveTask;
 
     @Override
     public IFuture save() {

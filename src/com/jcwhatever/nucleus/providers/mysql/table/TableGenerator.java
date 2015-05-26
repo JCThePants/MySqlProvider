@@ -14,8 +14,8 @@ import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition.ISqlTableColumn;
 import java.util.ArrayList;
 import java.util.List;
 
-/*
- * 
+/**
+ * Generates sql statement to create a table.
  */
 public class TableGenerator {
 
@@ -23,12 +23,22 @@ public class TableGenerator {
     private String _name;
     private ISqlTableDefinition _definition;
 
+    /**
+     * Constructor.
+     *
+     * @param database    The database the table will be created in.
+     * @param tableName   The name of the table.
+     * @param definition  The table definition.
+     */
     public TableGenerator(Database database, String tableName, ISqlTableDefinition definition) {
         _database = database;
         _name = tableName;
         _definition = definition;
     }
 
+    /**
+     * Get finalized statement used to create the table.
+     */
     public FinalizedStatements getFinalized() {
 
         Statement unfinalized = new Statement(_database, 100, 0);

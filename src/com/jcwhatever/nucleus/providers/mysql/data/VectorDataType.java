@@ -1,9 +1,9 @@
 package com.jcwhatever.nucleus.providers.mysql.data;
 
-import java.util.Vector;
+import org.bukkit.util.Vector;
 
-/*
- * 
+/**
+ * Compound data type for {@link Vector}
  */
 public class VectorDataType extends AbstractDataType {
 

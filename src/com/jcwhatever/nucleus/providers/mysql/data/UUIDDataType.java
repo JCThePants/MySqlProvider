@@ -2,8 +2,10 @@ package com.jcwhatever.nucleus.providers.mysql.data;
 
 import java.util.UUID;
 
-/*
- * 
+/**
+ * UUID data type
+ *
+ * <p>16 byte binary data.</p>
  */
 public class UUIDDataType extends AbstractDataType {
 

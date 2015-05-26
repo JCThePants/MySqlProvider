@@ -13,20 +13,28 @@ import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition.ISqlTableColumn;
 import java.util.List;
 import java.util.Queue;
 
-/*
- * 
+/**
+ * Utility methods.
  */
 public class Utils {
 
     private Utils() {}
 
-    public static void appendCompound(Table table, Statement unfinalizedStatement, List<CompoundValue> compoundValues) {
+    /**
+     * Append values for a compound data type to a statement.
+     *
+     * @param table           The table the statement is for.
+     * @param unfinalized     The statement.
+     * @param compoundValues  The compound values to be appended.
+     */
+    public static void appendCompound(
+            Table table, Statement unfinalized, List<CompoundValue> compoundValues) {
 
         if (compoundValues == null || compoundValues.isEmpty())
             return;
 
-        StringBuilder statement = unfinalizedStatement.getBuffer();
-        List<Object> values = unfinalizedStatement.getValues();
+        StringBuilder statement = unfinalized.getBuffer();
+        List<Object> values = unfinalized.getValues();
 
         StringBuilder buffer = TempBuffers.STRING_BUILDERS.get();
         Queue<Object> valueBuffer = TempBuffers.VALUES.get();

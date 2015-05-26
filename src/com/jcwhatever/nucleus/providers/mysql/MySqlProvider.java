@@ -97,6 +97,9 @@ public class MySqlProvider extends Provider implements ISqlProvider {
     public static final ISqlDbType UUID = add(new UUIDDataType());
     public static final ISqlDbType ITEM_STACKS = add(new ItemStacksDataType());
 
+    /**
+     * Get the provider instance.
+     */
     public static MySqlProvider getProvider() {
         return _instance;
     }

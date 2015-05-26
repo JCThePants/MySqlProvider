@@ -16,8 +16,8 @@ import java.sql.SQLException;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * Implementation of {@link Vector} for {@link ICompoundDataHandler}.
  */
 public class VectorHandler implements ICompoundDataHandler {
 
@@ -28,6 +28,11 @@ public class VectorHandler implements ICompoundDataHandler {
 
     private ISqlTable _table;
 
+    /**
+     * Constructor.
+     *
+     * @param database  The owning database.
+     */
     public VectorHandler(ISqlDatabase database) {
 
         ISqlTableDefinition definition =

@@ -17,8 +17,8 @@ import java.sql.SQLException;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * Implementation of {@link ICompoundDataHandler} for {@link ItemStack}.
  */
 public class ItemStackHandler implements ICompoundDataHandler {
 
@@ -29,6 +29,11 @@ public class ItemStackHandler implements ICompoundDataHandler {
 
     private ISqlTable _table;
 
+    /**
+     * Constructor.
+     *
+     * @param database  The owning database.
+     */
     public ItemStackHandler(ISqlDatabase database) {
 
         ISqlTableDefinition definition =

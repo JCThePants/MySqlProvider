@@ -11,8 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * Sql statement context buffer.
+ *
+ * <p>Used to construct multiple sql statements for a single context.</p>
  */
 public class Statement {
 
@@ -24,37 +26,61 @@ public class Statement {
     private String[] _columns;
     private boolean _isPrefixed = true;
 
+    /**
+     * Constructor.
+     *
+     * @param database       The database the statements will be for.
+     * @param statementSize  The initial statement builder buffer size.
+     * @param valueSize      The initial capacity of the value buffer.
+     */
     public Statement(ISqlDatabase database, int statementSize, int valueSize) {
-        this(database, statementSize, valueSize, null);
-    }
+        PreCon.notNull(database);
+        PreCon.positiveNumber(statementSize);
+        PreCon.positiveNumber(valueSize);
 
-    public Statement(ISqlDatabase database, int statementSize, int valueSize, @Nullable String[] columns) {
         _database = database;
         _statement = new StringBuilder(statementSize);
         _values = new ArrayList<>(valueSize);
-        _columns = columns;
     }
 
+    /**
+     * Get the current length of the current statement.
+     */
     public int length() {
         return _statement.length();
     }
 
+    /**
+     * Get the column name prefix flag.
+     */
     public boolean isPrefixed() {
         return _isPrefixed;
     }
 
+    /**
+     * Set the column name prefix flag.
+     */
     public void setPrefixed(boolean isPrefixed) {
         _isPrefixed = isPrefixed;
     }
 
+    /**
+     * Get the current statement type.
+     */
     public StatementType getType() {
         return _type;
     }
 
+    /**
+     * Set the current statement type.
+     */
     public void setType(StatementType type) {
         _type = type;
     }
 
+    /**
+     * Get the current statement affected column names.
+     */
     public String[] getColumns() {
         if (_columns == null)
             return new String[0];
@@ -62,18 +88,32 @@ public class Statement {
         return _columns;
     }
 
+    /**
+     * Set the current statement affected columns.
+     *
+     * @param columns  The column names.
+     */
     public void setColumns(String[] columns) {
         _columns = columns;
     }
 
+    /**
+     * Get the sql statement buffer.
+     */
     public StringBuilder getBuffer() {
         return _statement;
     }
 
+    /**
+     * Get the values buffer.
+     */
     public List<Object> getValues() {
         return _values;
     }
 
+    /**
+     * Get all finalized statements.
+     */
     public FinalizedStatements getFinalized() {
         if (_list == null)
             return new FinalizedStatements(_database);
@@ -81,6 +121,11 @@ public class Statement {
         return new FinalizedStatements(_database, _list);
     }
 
+    /**
+     * Prepare all finalized statements.
+     *
+     * @throws SQLException
+     */
     public PreparedStatement[] prepareStatements() throws SQLException {
         if (_list == null)
             return new PreparedStatement[0];
@@ -94,6 +139,16 @@ public class Statement {
         return result;
     }
 
+    /**
+     * Finalize the current statement for the specified table and add
+     * to the internal list of finalized statements.
+     *
+     * <p>Resets the {@link Statement} so the next statement can be constructed.</p>
+     *
+     * @param table  The table the statement is for.
+     *
+     * @return  The new {@link FinalizedStatement} or null if the buffer is empty.
+     */
     @Nullable
     public FinalizedStatement finalizeStatement(Table table) {
         PreCon.notNull(table);
@@ -111,6 +166,14 @@ public class Statement {
         return result;
     }
 
+    /**
+     * Finalize the current statement for the specified connection and add
+     * to the internal list of finalized statements.
+     *
+     * <p>Resets the {@link Statement} so the next statement can be constructed.</p>
+     *
+     * @param connection  The connection the statement is for.
+     */
     public void finalizeStatement(Connection connection) {
         if (_statement.length() != 0) {
             initList();
@@ -121,12 +184,22 @@ public class Statement {
         reset();
     }
 
+    /**
+     * Add a "begin transaction" statement to the internal list of finalized statements.
+     *
+     * @param connection  The connection the statement is for.
+     */
     public void startTransaction(Connection connection) {
         finalizeStatement(connection);
         initList();
         _list.add(new FinalizedStatement(connection, StatementType.TRANSACTION_START));
     }
 
+    /**
+     * Adda "commit transaction" statement to the internal list of finalized statements.
+     *
+     * @param connection  The connection the statement is for.
+     */
     public void commitTransaction(Connection connection) {
         finalizeStatement(connection);
         initList();

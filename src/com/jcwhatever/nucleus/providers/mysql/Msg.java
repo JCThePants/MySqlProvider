@@ -12,7 +12,7 @@ import java.util.Collection;
 import java.util.UUID;
 
 /**
- * Convenience class for accessing musical regions chat and console messenger.
+ * Convenience methods for sending chat and console messages.
  */
 public class Msg {
 

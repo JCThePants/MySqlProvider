@@ -2,8 +2,8 @@ package com.jcwhatever.nucleus.providers.mysql.data;
 
 import org.bukkit.inventory.ItemStack;
 
-/*
- * 
+/**
+ * Compound data type for {@link ItemStack}.
  */
 public class ItemStacksDataType extends AbstractDataType {
 

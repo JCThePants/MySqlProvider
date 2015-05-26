@@ -17,8 +17,8 @@ import java.sql.SQLException;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
-/*
- * 
+/**
+ * Implementation of {@link ICompoundDataHandler} for {@link Location}.
  */
 public class LocationHandler implements ICompoundDataHandler {
 
@@ -31,6 +31,11 @@ public class LocationHandler implements ICompoundDataHandler {
 
     private ISqlTable _table;
 
+    /**
+     * Constructor.
+     *
+     * @param database  The owning database.
+     */
     public LocationHandler(ISqlDatabase database) {
 
         ISqlTableDefinition definition =

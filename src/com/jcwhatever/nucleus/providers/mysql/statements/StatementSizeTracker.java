@@ -19,6 +19,12 @@ public class StatementSizeTracker {
 
     private final ReadWriteLock _lock = new ReentrantReadWriteLock();
 
+    /**
+     * Constructor.
+     *
+     * @param initialSize  The initial size.
+     * @param maxSamples   The max number of size samples to take.
+     */
     public StatementSizeTracker(int initialSize, int maxSamples) {
         _size = initialSize;
         _maxSamples = maxSamples;
@@ -26,6 +32,9 @@ public class StatementSizeTracker {
         _samples = new int[maxSamples];
     }
 
+    /**
+     * Get the recommended statement buffer size.
+     */
     public int getSize() {
         _lock.readLock().lock();
         try {
@@ -36,6 +45,11 @@ public class StatementSizeTracker {
         }
     }
 
+    /**
+     * Register the final size of the most recent statement.
+     *
+     * @param size  The size of the statement.
+     */
     public void registerSize(int size) {
 
         _lock.writeLock().lock();
