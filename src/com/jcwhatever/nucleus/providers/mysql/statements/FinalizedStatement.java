@@ -11,6 +11,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.UUID;
 import javax.annotation.Nullable;
@@ -241,7 +242,7 @@ public class FinalizedStatement implements ISqlStatement {
                 buffer.putLong(uuid.getLeastSignificantBits());
                 statement.setBytes(count, buffer.array());
             } else if (value instanceof Date) {
-                statement.setDate(count, new java.sql.Date(((Date) value).getTime()));
+                statement.setTimestamp(count, new Timestamp(((Date) value).getTime()));
             }
             else {
                 statement.setObject(count, value);
