@@ -183,10 +183,8 @@ public class MySqlProvider extends Provider implements ISqlProvider {
         return new FutureResultAgent<ISqlDatabase>().success(database);
     }
 
-    public IFutureResult<ISqlResult> execute(Transaction transaction) {
+    public IFutureResult<ISqlResult> execute(Transaction transaction, FutureResultAgent<ISqlResult> agent) {
         PreCon.notNull(transaction);
-
-        FutureResultAgent<ISqlResult> agent = new FutureResultAgent<>();
 
         _statementExecutor.execute(transaction, agent);
 

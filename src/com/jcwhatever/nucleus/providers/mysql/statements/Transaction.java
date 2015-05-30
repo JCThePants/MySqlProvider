@@ -6,6 +6,7 @@ import com.jcwhatever.nucleus.providers.sql.ISqlResult;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlStatement;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlTransaction;
 import com.jcwhatever.nucleus.utils.PreCon;
+import com.jcwhatever.nucleus.utils.observer.future.FutureResultAgent;
 import com.jcwhatever.nucleus.utils.observer.future.IFutureResult;
 
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ import java.util.Collection;
 public class Transaction extends ArrayList<FinalizedStatements> implements ISqlTransaction {
 
     private final ISqlDatabase _database;
+    private final FutureResultAgent<ISqlResult> _agent = new FutureResultAgent<>();
 
     /**
      * Constructor.
@@ -80,6 +82,11 @@ public class Transaction extends ArrayList<FinalizedStatements> implements ISqlT
 
     @Override
     public IFutureResult<ISqlResult> execute() {
-        return MySqlProvider.getProvider().execute(this);
+        return MySqlProvider.getProvider().execute(this, _agent);
+    }
+
+    @Override
+    public IFutureResult<ISqlResult> future() {
+        return _agent.getFuture();
     }
 }
