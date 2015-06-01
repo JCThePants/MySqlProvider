@@ -35,6 +35,7 @@ import com.jcwhatever.nucleus.providers.sql.ISqlProvider;
 import com.jcwhatever.nucleus.providers.sql.ISqlQueryResult;
 import com.jcwhatever.nucleus.providers.sql.ISqlResult;
 import com.jcwhatever.nucleus.providers.sql.datanode.ISqlDataNodeBuilder;
+import com.jcwhatever.nucleus.storage.IDataNode;
 import com.jcwhatever.nucleus.utils.DependencyRunner;
 import com.jcwhatever.nucleus.utils.DependencyRunner.DependencyStatus;
 import com.jcwhatever.nucleus.utils.DependencyRunner.IDependantRunnable;
@@ -43,6 +44,7 @@ import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.observer.future.FutureResultAgent;
 import com.jcwhatever.nucleus.utils.observer.future.IFuture;
 import com.jcwhatever.nucleus.utils.observer.future.IFutureResult;
+import com.jcwhatever.nucleus.utils.text.TextUtils;
 import org.bukkit.plugin.Plugin;
 
 import javax.annotation.Nullable;
@@ -110,18 +112,20 @@ public class MySqlProvider extends Provider implements ISqlProvider {
     }
 
     private StatementExecutor _statementExecutor;
+    private String _driver = "com.mysql.jdbc.Driver";
+    private String _connectionFormat =
+            "jdbc:mysql://{0: address}/{1: databaseName}?user={2: username}&password={3: password}";
 
     /**
-     * Constructor.
+     * Get a database connection string.
+     *
+     * @param address   The database address.
+     * @param dbName    The database name.
+     * @param user      The connection user name.
+     * @param password  The connection password.
      */
-    public MySqlProvider() {
-        super();
-
-        try {
-            Class.forName ("com.mysql.jdbc.Driver").newInstance();
-        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
-            throw new RuntimeException("JDBC database driver not found.");
-        }
+    public String getConnectionString(String address, String dbName, String user, String password) {
+        return TextUtils.format(_connectionFormat, address, dbName, user, password);
     }
 
     @Override
@@ -258,6 +262,21 @@ public class MySqlProvider extends Provider implements ISqlProvider {
     @Override
     protected void onEnable() {
         _instance = this;
+
+        IDataNode dataNode = getDataNode();
+        dataNode.setDefaultsSaved(true);
+
+        _driver = dataNode.getString("driver", _driver);
+        _connectionFormat = dataNode.getString("connection-format", _connectionFormat);
+
+        try {
+            Class.forName (_driver).newInstance();
+        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
+            throw new RuntimeException("Database driver '" + _driver + "' not found.");
+        }
+
+        dataNode.save();
+
         _statementExecutor = new StatementExecutor(4);
     }
 

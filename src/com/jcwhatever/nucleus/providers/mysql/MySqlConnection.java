@@ -350,20 +350,13 @@ public class MySqlConnection implements Connection {
     }
 
     private Connection createConnection() {
-        String address = _address.startsWith("jdbc:") ? _address : "jdbc:mysql://" + _address;
 
-        if (!_address.contains("user=") &&
-                !_address.contains("password=")) {
-
-            address = address + '/' + _databaseName + "?user=" + _user + "&password=" + _password +
-                    "&MULTI_STATEMENTS=1";
-        }
-        else {
-            address += "&MULTI_STATEMENTS=1";
-        }
+        String connectionString = MySqlProvider.getProvider().getConnectionString(
+                _address, _databaseName, _user, _password
+        );
 
         try {
-            return DriverManager.getConnection(address);
+            return DriverManager.getConnection(connectionString);
         } catch (SQLException e) {
             e.printStackTrace();
             throw new RuntimeException(e);
