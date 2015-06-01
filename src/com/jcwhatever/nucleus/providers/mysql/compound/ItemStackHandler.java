@@ -23,7 +23,7 @@ public class ItemStackHandler implements ICompoundDataHandler {
 
     private static final String TABLE_NAME = "Nucleus_Items";
     private static final String[] COLUMN_NAMES = new String[] {
-            "serialized"
+            "isNull", "serialized"
     };
 
     private ISqlTable _table;
@@ -39,6 +39,7 @@ public class ItemStackHandler implements ICompoundDataHandler {
         ISqlTableDefinition definition =
                 database.createTableBuilder().usageReadInsertUpdate().transactional()
                         .column("id", SqlDbType.LONG_UNSIGNED).primary().autoIncrement()
+                        .column("isNull", SqlDbType.BOOLEAN).defaultValue(false)
                         .column("serialized", SqlDbType.getString(20000))
                         .define();
 
@@ -69,6 +70,10 @@ public class ItemStackHandler implements ICompoundDataHandler {
     @Override
     public <T> T getDataFromRow(String alias, ResultSet resultSet) throws SQLException {
 
+        boolean isNull = resultSet.getBoolean(alias + ".isNull");
+        if (isNull)
+            return null;
+
         String serialized = resultSet.getString(alias + ".serialized");
 
         try {
@@ -85,10 +90,12 @@ public class ItemStackHandler implements ICompoundDataHandler {
     }
 
     @Override
-    public ICompoundDataIterator dataIterator(Object value) {
-        PreCon.isValid(value instanceof ItemStack || value instanceof ItemStack[]);
+    public ICompoundDataIterator dataIterator(final @Nullable Object value) {
+        PreCon.isValid(value == null
+                || value instanceof ItemStack
+                || value instanceof ItemStack[]);
 
-        final String serialized = value instanceof ItemStack
+        final String serialized = value == null ? null : value instanceof ItemStack
                 ? ItemStackUtils.serialize((ItemStack)value)
                 : ItemStackUtils.serialize((ItemStack[])value);
 
@@ -99,19 +106,28 @@ public class ItemStackHandler implements ICompoundDataHandler {
             @Override
             public boolean next() {
                 index++;
-                return index < 1;
+                return (value == null && index < 1) || index < COLUMN_NAMES.length;
             }
 
             @Override
             public String getColumnName() {
+
+                if (value == null)
+                    return "isNull";
+
                 return COLUMN_NAMES[index];
             }
 
             @Override
             public Object getValue() {
 
+                if (value == null)
+                    return true;
+
                 switch (index) {
                     case 0:
+                        return false;
+                    case 1:
                         return serialized;
                     default:
                         throw new NoSuchElementException();
@@ -121,6 +137,11 @@ public class ItemStackHandler implements ICompoundDataHandler {
             @Override
             public int currentIndex() {
                 return index;
+            }
+
+            @Override
+            public boolean isLast() {
+                return value == null || index >= COLUMN_NAMES.length - 1;
             }
         };
     }

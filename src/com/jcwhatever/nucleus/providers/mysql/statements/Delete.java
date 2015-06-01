@@ -1,11 +1,12 @@
 package com.jcwhatever.nucleus.providers.mysql.statements;
 
 import com.jcwhatever.nucleus.providers.mysql.MySqlProvider;
-import com.jcwhatever.nucleus.providers.mysql.Utils;
 import com.jcwhatever.nucleus.providers.mysql.compound.CompoundValue;
+import com.jcwhatever.nucleus.providers.mysql.compound.ICompoundDataHandler;
 import com.jcwhatever.nucleus.providers.mysql.table.Table;
 import com.jcwhatever.nucleus.providers.sql.ISqlResult;
 import com.jcwhatever.nucleus.providers.sql.ISqlTable;
+import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition.ISqlTableColumn;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlStatement;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlTransaction;
 import com.jcwhatever.nucleus.providers.sql.statement.delete.ISqlDelete;
@@ -14,11 +15,11 @@ import com.jcwhatever.nucleus.providers.sql.statement.delete.ISqlDeleteOperator;
 import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.observer.future.IFutureResult;
 
+import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link ISqlDelete}.
@@ -59,8 +60,76 @@ public class Delete implements ISqlDelete {
         _compoundValues = totalCompound > 0 ? new ArrayList<CompoundValue>(totalCompound) : null;
 
         statement()
-                .append("DELETE FROM ")
-                .append(_table.getName());
+                .append("DELETE ");
+
+        if (totalCompound > 0) {
+
+            statement()
+                    .append(_table.getName())
+                    .append(',');
+
+            ISqlTableColumn[] columns = table.getDefinition().getCompoundColumns();
+
+            for (int i=0; i < columns.length; i++) {
+
+                ICompoundDataHandler handler =
+                        _table.getDatabase().getCompoundManager()
+                                .getHandler(columns[i].getDataType());
+
+                if (handler == null)
+                    continue;
+
+                ISqlTable handlerTable = handler.getTable();
+
+                statement()
+                        .append(handlerTable.getName())
+                        .append('_')
+                        .append(columns[i].getName());
+
+                if (i < columns.length - 1)
+                    statement().append(',');
+            }
+
+            statement()
+                    .append(" FROM ")
+                    .append(_table.getName());
+
+            for (ISqlTableColumn column : columns) {
+
+                ICompoundDataHandler handler =
+                        _table.getDatabase().getCompoundManager()
+                                .getHandler(column.getDataType());
+
+                if (handler == null)
+                    continue;
+
+                ISqlTable handlerTable = handler.getTable();
+
+                //noinspection ConstantConditions
+                statement()
+                        .append(" LEFT JOIN ")
+                        .append(handlerTable.getName())
+                        .append(' ')
+                        .append(handlerTable.getName())
+                        .append('_')
+                        .append(column.getName())
+                        .append(" ON ")
+                        .append(handlerTable.getName())
+                        .append('_')
+                        .append(column.getName())
+                        .append('.')
+                        .append(handlerTable.getDefinition().getPrimaryKey().getName())
+                        .append('=')
+                        .append(table.getName())
+                        .append('.')
+                        .append(column.getName());
+            }
+        }
+        else {
+            statement()
+                    .append("FROM ")
+                    .append(_table.getName());
+        }
     }
 
     @Override
@@ -144,7 +213,6 @@ public class Delete implements ISqlDelete {
         if (_isFinalized)
             return _finalized;
 
-        Utils.appendCompound(_table, _statement, _compoundValues);
         _sizeTracker.registerSize(_statement.length());
         _finalized = _statement.finalizeStatement(_table);
         _isFinalized = true;

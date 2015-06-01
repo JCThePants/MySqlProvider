@@ -27,4 +27,9 @@ public interface ICompoundDataIterator {
      * Get the current index.
      */
     int currentIndex();
+
+    /**
+     * Determine if the current index is the last index.
+     */
+    boolean isLast();
 }

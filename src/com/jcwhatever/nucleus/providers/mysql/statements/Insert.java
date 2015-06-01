@@ -16,13 +16,14 @@ import com.jcwhatever.nucleus.providers.sql.statement.mixins.ISqlExecutable;
 import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.Rand;
 import com.jcwhatever.nucleus.utils.observer.future.IFutureResult;
+import com.jcwhatever.nucleus.utils.text.TextUtils;
 
+import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link ISqlInsert}.
@@ -114,7 +115,7 @@ public class Insert implements ISqlInsert {
         if (_isFinalized && !force)
             return _finalized;
 
-        Utils.appendCompound(_table, _statement, _compoundValues);
+        Utils.insertCompound(_table, _statement, _compoundValues);
         _sizeTracker.registerSize(_statement.length());
         _finalized = _statement.finalizeStatement(_table);
         _isFinalized = true;
@@ -125,7 +126,53 @@ public class Insert implements ISqlInsert {
         return _statement.getBuffer();
     }
 
-    private void statementValues(Object value) {
+    private CompoundValue addValue(int columnIndex, @Nullable Object value) {
+        String columnName = _statement.getColumns()[columnIndex];
+        ISqlTableColumn column = null;
+        boolean hasTableName = columnName.indexOf('.') != -1;
+
+        if (!hasTableName || columnName.startsWith(_table.getName())) {
+
+            String name;
+
+            if (hasTableName) {
+                String[] nameComponents = TextUtils.PATTERN_DOT.split(columnName);
+                name = nameComponents[nameComponents.length - 1];
+            }
+            else {
+                name = columnName;
+            }
+
+            column = _table.getDefinition().getColumn(name);
+        }
+
+        if (column != null && column.getDataType().isCompound())
+            return addCompoundValue(column, value);
+
+        _statement.getValues().add(value);
+        return null;
+    }
+
+    private CompoundValue addCompoundValue(ISqlTableColumn column, @Nullable Object value) {
+        CompoundValue compoundValue = new CompoundValue(Rand.getSafeString(10), column, value);
+        _compoundValues.add(compoundValue);
+        return compoundValue;
+    }
+
+    private void appendCompoundValue(@Nullable CompoundValue compoundValue) {
+
+        if (compoundValue != null) {
+            statement()
+                    .append('@')
+                    .append(compoundValue.getVariable());
+        }
+        else {
+            statement()
+                    .append("DEFAULT");
+        }
+    }
+
+    private void addValue(Object value) {
         _statement.getValues().add(value);
     }
 
@@ -151,11 +198,20 @@ public class Insert implements ISqlInsert {
             }
 
             for (int i=0; i < values.length; i++) {
-                statement().append('?');
+
+                CompoundValue compoundValue = addValue(i, values[i]);
+
+                if (compoundValue == null) {
+                    statement().append('?');
+                }
+                else {
+                    statement()
+                            .append('@')
+                            .append(compoundValue.getVariable());
+                }
+
                 if (i < values.length - 1)
                     statement().append(',');
-
-                statementValues(values[i]);
             }
 
             statement().append(')');
@@ -275,13 +331,6 @@ public class Insert implements ISqlInsert {
                         " is not defined in table " + _table.getName());
             }
 
-            CompoundValue compoundValue = null;
-
-            if (value != null && _compoundValues != null && column.getDataType().isCompound()) {
-                compoundValue = new CompoundValue(Rand.getSafeString(10), column, value);
-                _compoundValues.add(compoundValue);
-            }
-
             if (hasValues)
                 statement().append(',');
 
@@ -289,17 +338,16 @@ public class Insert implements ISqlInsert {
                     .append(columnName)
                     .append('=');
 
-            if (compoundValue != null) {
-                statement()
-                        .append('@')
-                        .append(compoundValue.getVariable());
+            if (column.getDataType().isCompound()) {
+                CompoundValue compoundValue = addCompoundValue(column, value);
+                appendCompoundValue(compoundValue);
             }
             else if (value == null) {
                 statement().append("DEFAULT");
             }
             else {
                 statement().append('?');
-                statementValues(value);
+                addValue(value);
             }
 
             hasValues = true;

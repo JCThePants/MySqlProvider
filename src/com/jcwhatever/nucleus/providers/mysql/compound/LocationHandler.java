@@ -23,6 +23,7 @@ public class LocationHandler implements ICompoundDataHandler {
 
     private static final String TABLE_NAME = "Nucleus_Locations";
     private static final String[] COLUMN_NAMES = new String[] {
+            "isNull",
             "world",
             "x", "y", "z",
             "yaw", "pitch"
@@ -40,14 +41,15 @@ public class LocationHandler implements ICompoundDataHandler {
 
         ISqlTableDefinition definition =
                 database.createTableBuilder().usageReadInsertUpdate().transactional()
-                .column("id", SqlDbType.LONG_UNSIGNED).primary().autoIncrement()
-                .column("world", SqlDbType.getString(45)).nullable()
-                .column("x", SqlDbType.DOUBLE)
-                .column("y", SqlDbType.DOUBLE)
-                .column("z", SqlDbType.DOUBLE)
-                .column("yaw", SqlDbType.FLOAT)
-                .column("pitch", SqlDbType.FLOAT)
-                .define();
+                        .column("id", SqlDbType.LONG_UNSIGNED).primary().autoIncrement()
+                        .column("isNull", SqlDbType.BOOLEAN).defaultValue(false)
+                        .column("world", SqlDbType.getString(45)).nullable()
+                        .column("x", SqlDbType.DOUBLE)
+                        .column("y", SqlDbType.DOUBLE)
+                        .column("z", SqlDbType.DOUBLE)
+                        .column("yaw", SqlDbType.FLOAT)
+                        .column("pitch", SqlDbType.FLOAT)
+                        .define();
 
         database.createTable(TABLE_NAME, definition)
                 .onSuccess(new FutureResultSubscriber<ISqlTable>() {
@@ -76,6 +78,10 @@ public class LocationHandler implements ICompoundDataHandler {
     @Override
     public <T> T getDataFromRow(String alias, ResultSet resultSet) throws SQLException {
 
+        boolean isNull = resultSet.getBoolean(alias + ".isNull");
+        if (isNull)
+            return null;
+
         String worldName = resultSet.getString(alias + ".world");
         double x = resultSet.getDouble(alias + ".x");
         double y = resultSet.getDouble(alias + ".y");
@@ -90,8 +96,8 @@ public class LocationHandler implements ICompoundDataHandler {
     }
 
     @Override
-    public ICompoundDataIterator dataIterator(Object value) {
-        PreCon.isValid(value instanceof Location);
+    public ICompoundDataIterator dataIterator(final @Nullable Object value) {
+        PreCon.isValid(value == null || value instanceof Location);
 
         final Location location = (Location)value;
 
@@ -102,34 +108,43 @@ public class LocationHandler implements ICompoundDataHandler {
             @Override
             public boolean next() {
                 index++;
-                return index < 6;
+                return (value == null && index < 1) || index < COLUMN_NAMES.length;
             }
 
             @Override
             public String getColumnName() {
+
+                if (value == null)
+                    return "isNull";
+
                 return COLUMN_NAMES[index];
             }
 
             @Override
             public Object getValue() {
 
+                if (value == null)
+                    return true;
+
                 switch (index) {
                     case 0:
+                        return false;
+                    case 1:
                         if (location instanceof SyncLocation)
                             return ((SyncLocation) location).getWorldName();
 
                         World world = location.getWorld();
                         return world == null ? null : world.getName();
 
-                    case 1:
-                        return location.getX();
                     case 2:
-                        return location.getY();
+                        return location.getX();
                     case 3:
-                        return location.getZ();
+                        return location.getY();
                     case 4:
-                        return location.getYaw();
+                        return location.getZ();
                     case 5:
+                        return location.getYaw();
+                    case 6:
                         return location.getPitch();
                     default:
                         throw new NoSuchElementException();
@@ -139,6 +154,11 @@ public class LocationHandler implements ICompoundDataHandler {
             @Override
             public int currentIndex() {
                 return index;
+            }
+
+            @Override
+            public boolean isLast() {
+                return value == null || index >= COLUMN_NAMES.length - 1;
             }
         };
     }

@@ -21,10 +21,10 @@ import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.observer.future.IFutureResult;
 import com.jcwhatever.nucleus.utils.text.TextUtils;
 
+import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link ISqlSelect}.
@@ -236,6 +236,9 @@ public class Select implements ISqlSelect {
         }
         else {
 
+
+            ISqlTableDefinition definition = _table.getDefinition();
+            CompoundDataManager manager = _table.getDatabase().getCompoundManager();
             String[] columns = _statement.getColumns();
 
             for (int i = 0; i < columns.length; i++) {
@@ -250,6 +253,36 @@ public class Select implements ISqlSelect {
 
                 if (i < columns.length - 1)
                     statement().append(',');
+
+                // handle compound value table columns
+
+                ISqlTableColumn column = definition.getColumn(columns[i]);
+                if (column == null || !column.getDataType().isCompound())
+                    continue;
+
+                ICompoundDataHandler handler = manager.getHandler(column.getDataType());
+                if (handler == null) {
+                    throw new UnsupportedOperationException("Data type not supported: "
+                            + column.getDataType().getName());
+                }
+
+                String[] columnNames = handler.getTable().getDefinition().getColumnNames();
+
+                if (i >= columns.length - 1)
+                    statement().append(',');
+
+                for (int c=0; c < columnNames.length; c++) {
+
+                    statement()
+                            .append(handler.getTable().getName())
+                            .append('_')
+                            .append(columns[i])
+                            .append('.')
+                            .append(columnNames[c]);
+
+                    if (c < columnNames.length - 1)
+                        statement().append(',');
+                }
             }
         }
 
@@ -289,14 +322,21 @@ public class Select implements ISqlSelect {
             statement()
                     .append(" INNER JOIN ")
                     .append(table.getName())
+                    .append(" AS ")
+                    .append(table.getName())
+                    .append('_')
+                    .append(column.getName())
                     .append(" ON ")
                     .append(_table.getName())
                     .append('.')
                     .append(column.getName())
                     .append('=')
                     .append(table.getName())
+                    .append('_')
+                    .append(column.getName())
                     .append('.')
-                    .append(primary.getName());
+                    .append(primary.getName())
+            ;
         }
     }
 

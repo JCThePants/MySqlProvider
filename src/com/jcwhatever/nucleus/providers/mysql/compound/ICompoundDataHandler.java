@@ -39,5 +39,5 @@ public interface ICompoundDataHandler extends ILoadable {
      * @param value  The value which must be an instance of the data type the
      *               handler is for.
      */
-    ICompoundDataIterator dataIterator(Object value);
+    ICompoundDataIterator dataIterator(@Nullable Object value);
 }

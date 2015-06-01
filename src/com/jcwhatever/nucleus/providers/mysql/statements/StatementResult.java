@@ -5,13 +5,13 @@ import com.jcwhatever.nucleus.providers.mysql.compound.LocationHandler;
 import com.jcwhatever.nucleus.providers.mysql.compound.VectorHandler;
 import com.jcwhatever.nucleus.providers.mysql.table.Table;
 import com.jcwhatever.nucleus.providers.sql.ISqlQueryResult;
-import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition;
 import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.coords.SyncLocation;
-
+import com.jcwhatever.nucleus.utils.text.TextUtils;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import javax.annotation.Nullable;
 import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
@@ -34,7 +34,6 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Map;
 import java.util.UUID;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link ISqlQueryResult}.
@@ -43,7 +42,6 @@ public class StatementResult implements ISqlQueryResult {
 
     private final FinalizedStatement _statement;
     private final Table _table;
-    private final ISqlTableDefinition _definition;
     private final ResultSet _result;
     private final String[] _columns;
     private boolean _hasCalledNext;
@@ -60,7 +58,6 @@ public class StatementResult implements ISqlQueryResult {
 
         _statement = statement;
         _table = statement.getTable();
-        _definition = _table.getDefinition();
         _columns = statement.getColumns();
         _result = result;
     }
@@ -138,7 +135,10 @@ public class StatementResult implements ISqlQueryResult {
 
         LocationHandler handler = _table.getDatabase().getCompoundManager().getLocationHandler();
 
-        return handler.getDataFromRow(_table.getName() + '_' + columnName, _result);
+        String[] columnComponents = TextUtils.PATTERN_DOT.split(columnName);
+
+        return handler.getDataFromRow(
+                "Nucleus_Locations_" + columnComponents[columnComponents.length - 1], _result);
     }
 
     @Override
@@ -155,7 +155,10 @@ public class StatementResult implements ISqlQueryResult {
 
         VectorHandler handler = _table.getDatabase().getCompoundManager().getVectorHandler();
 
-        return handler.getDataFromRow(_table.getName() + '_' + columnName, _result);
+        String[] columnComponents = TextUtils.PATTERN_DOT.split(columnName);
+
+        return handler.getDataFromRow(
+                "Nucleus_Vectors_" + columnComponents[columnComponents.length - 1], _result);
     }
 
     @Override
@@ -172,7 +175,10 @@ public class StatementResult implements ISqlQueryResult {
 
         ItemStackHandler handler = _table.getDatabase().getCompoundManager().getItemStackHandler();
 
-        return handler.getDataFromRow(_table.getName() + '_' + columnName, _result);
+        String[] columnComponents = TextUtils.PATTERN_DOT.split(columnName);
+
+        return handler.getDataFromRow(
+                "Nucleus_Items_" + columnComponents[columnComponents.length - 1], _result);
     }
 
     @Override

@@ -10,8 +10,8 @@ import com.jcwhatever.nucleus.providers.sql.ISqlDbType;
 import com.jcwhatever.nucleus.providers.sql.ISqlTable;
 import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition.ISqlTableColumn;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Queue;
 
 /**
  * Utility methods.
@@ -21,23 +21,24 @@ public class Utils {
     private Utils() {}
 
     /**
-     * Append values for a compound data type to a statement.
+     * Append values for a compound data type to an insert statement.
      *
      * @param table           The table the statement is for.
      * @param unfinalized     The statement.
      * @param compoundValues  The compound values to be appended.
      */
-    public static void appendCompound(
+    public static void insertCompound(
             Table table, Statement unfinalized, List<CompoundValue> compoundValues) {
 
         if (compoundValues == null || compoundValues.isEmpty())
             return;
 
         StringBuilder statement = unfinalized.getBuffer();
+        List<Object> bufferedValues = new ArrayList<>(unfinalized.getValues());
         List<Object> values = unfinalized.getValues();
+        values.clear();
 
         StringBuilder buffer = TempBuffers.STRING_BUILDERS.get();
-        Queue<Object> valueBuffer = TempBuffers.VALUES.get();
 
         buffer.append(statement);
         statement.setLength(0);
@@ -64,7 +65,23 @@ public class Utils {
             statement
                     .append("INSERT INTO ")
                     .append(handlerTable.getName())
-                    .append(" VALUES (");
+                    .append(" (");
+
+            boolean hasColumns = false;
+            for (ISqlTableColumn column : handlerTable.getDefinition().getColumns()) {
+
+                if (column.isAutoIncrement())
+                    continue;
+
+                if (hasColumns)
+                    statement.append(',');
+
+                hasColumns = true;
+
+                statement.append(column.getName());
+            }
+
+            statement.append(") VALUES (");
 
             ICompoundDataIterator iterator = handler.dataIterator(compound.getValue());
             while (iterator.next()) {
@@ -74,26 +91,21 @@ public class Utils {
 
                 statement.append('?');
 
-                valueBuffer.add(iterator.getValue());
+                values.add(iterator.getValue());
             }
             statement.append(");");
+
+            unfinalized.finalizeStatement(table.getDatabase().getConnection());
 
             statement
                     .append("SET @")
                     .append(compound.getVariable())
-                    .append("=0;");
+                    .append("=LAST_INSERT_ID();");
 
-            statement
-                    .append("SELECT @")
-                    .append(compound.getVariable())
-                    .append(":=LAST_INSERT_ID();");
+            unfinalized.finalizeStatement(table.getDatabase().getConnection());
         }
 
-        valueBuffer.addAll(values);
-        values.clear();
-        values.addAll(valueBuffer);
-
+        values.addAll(bufferedValues);
         statement.append(buffer);
     }
-
 }

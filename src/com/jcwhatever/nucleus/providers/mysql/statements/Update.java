@@ -1,8 +1,10 @@
 package com.jcwhatever.nucleus.providers.mysql.statements;
 
 import com.jcwhatever.nucleus.providers.mysql.MySqlProvider;
-import com.jcwhatever.nucleus.providers.mysql.Utils;
+import com.jcwhatever.nucleus.providers.mysql.compound.CompoundDataManager;
 import com.jcwhatever.nucleus.providers.mysql.compound.CompoundValue;
+import com.jcwhatever.nucleus.providers.mysql.compound.ICompoundDataHandler;
+import com.jcwhatever.nucleus.providers.mysql.compound.ICompoundDataIterator;
 import com.jcwhatever.nucleus.providers.mysql.table.Table;
 import com.jcwhatever.nucleus.providers.sql.ISqlResult;
 import com.jcwhatever.nucleus.providers.sql.ISqlTable;
@@ -15,14 +17,13 @@ import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateFinal;
 import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateLogicalOperator;
 import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateOperator;
 import com.jcwhatever.nucleus.utils.PreCon;
-import com.jcwhatever.nucleus.utils.Rand;
 import com.jcwhatever.nucleus.utils.observer.future.IFutureResult;
 
+import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link ISqlUpdate}.
@@ -39,6 +40,7 @@ public class Update implements ISqlUpdate {
     private final Final _final = new Final();
 
     private List<CompoundValue> _compoundValues;
+    private int _setCount = 0;
     private boolean _isFinalized;
     private FinalizedStatement _finalized;
 
@@ -65,8 +67,45 @@ public class Update implements ISqlUpdate {
 
         statement()
                 .append("UPDATE ")
-                .append(_table.getName())
-                .append(" SET ");
+                .append(_table.getName());
+
+        if (totalCompound > 0) {
+
+            ISqlTableColumn[] columns = table.getDefinition().getCompoundColumns();
+
+            for (ISqlTableColumn column : columns) {
+
+                ICompoundDataHandler handler =
+                        _table.getDatabase().getCompoundManager()
+                                .getHandler(column.getDataType());
+
+                if (handler == null)
+                    continue;
+
+                ISqlTable handlerTable = handler.getTable();
+
+                //noinspection ConstantConditions
+                statement()
+                        .append(" LEFT JOIN ")
+                        .append(handlerTable.getName())
+                        .append(' ')
+                        .append(handlerTable.getName())
+                        .append('_')
+                        .append(column.getName())
+                        .append(" ON ")
+                        .append(handlerTable.getName())
+                        .append('_')
+                        .append(column.getName())
+                        .append('.')
+                        .append(handlerTable.getDefinition().getPrimaryKey().getName())
+                        .append('=')
+                        .append(table.getName())
+                        .append('.')
+                        .append(column.getName());
+            }
+        }
+
+        statement().append(" SET ");
     }
 
     @Override
@@ -94,7 +133,6 @@ public class Update implements ISqlUpdate {
         if (_isFinalized)
             return _finalized;
 
-        Utils.appendCompound(_table, _statement, _compoundValues);
         _sizeTracker.registerSize(_statement.getBuffer().length());
         _finalized = _statement.finalizeStatement(_table);
         _isFinalized = true;
@@ -326,32 +364,53 @@ public class Update implements ISqlUpdate {
                         " is not defined in table " + _table.getName());
             }
 
-            CompoundValue compoundValue = null;
-
-            if (value != null && _compoundValues != null && column.getDataType().isCompound()) {
-                compoundValue = new CompoundValue(Rand.getSafeString(10), column, value);
-                _compoundValues.add(compoundValue);
-            }
-
-            if (!values().isEmpty())
+            if (_setCount > 0)
                 statement().append(',');
 
-            statement()
-                    .append(columnName)
-                    .append('=');
+            if (_compoundValues != null && column.getDataType().isCompound()) {
 
-            if (compoundValue != null) {
-                statement()
-                        .append('@')
-                        .append(compoundValue.getVariable());
-            }
-            else if (value == null) {
-                statement().append("DEFAULT");
+                CompoundDataManager manager = _table.getDatabase().getCompoundManager();
+                ICompoundDataHandler handler = manager.getHandler(column.getDataType());
+                if (handler == null) {
+                    throw new UnsupportedOperationException("Data type not supported: "
+                            + column.getDataType().getName());
+                }
+
+                ICompoundDataIterator iterator = handler.dataIterator(value);
+
+                while (iterator.next()) {
+
+                    statement()
+                            .append(handler.getTable().getName())
+                            .append('_')
+                            .append(column.getName())
+                            .append('.')
+                            .append(iterator.getColumnName())
+                            .append("=?");
+
+                    values(iterator.getValue());
+
+                    if (!iterator.isLast()) {
+                        statement().append(',');
+                    }
+                }
             }
             else {
-                statement().append('?');
-                values(value);
+
+                statement()
+                        .append(columnName)
+                        .append('=');
+
+                if (value == null) {
+                    statement().append("DEFAULT");
+                }
+                else {
+                    statement().append('?');
+                    values(value);
+                }
             }
+
+            _setCount++;
 
             return this;
         }
