@@ -16,11 +16,11 @@ import com.jcwhatever.nucleus.utils.observer.future.FutureResultSubscriber;
 import com.jcwhatever.nucleus.utils.observer.future.IFutureResult;
 import com.jcwhatever.nucleus.utils.observer.future.Result;
 
+import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link ISqlDatabase}.
@@ -52,6 +52,11 @@ public class Database implements ISqlDatabase {
      */
     public CompoundDataManager getCompoundManager() {
         return _compoundManager;
+    }
+
+    @Override
+    public boolean isLoaded() {
+        return _compoundManager.isLoaded();
     }
 
     @Override

@@ -1,15 +1,16 @@
 package com.jcwhatever.nucleus.providers.mysql.compound;
 
+import com.jcwhatever.nucleus.mixins.ILoadable;
 import com.jcwhatever.nucleus.providers.sql.ISqlTable;
 
+import javax.annotation.Nullable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import javax.annotation.Nullable;
 
 /**
  * Interface for a compound data handler.
  */
-public interface ICompoundDataHandler {
+public interface ICompoundDataHandler extends ILoadable {
 
     /**
      * Get the table the handler is for.

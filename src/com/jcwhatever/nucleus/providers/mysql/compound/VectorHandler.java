@@ -7,14 +7,13 @@ import com.jcwhatever.nucleus.providers.sql.SqlDbType;
 import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.observer.future.FutureResultSubscriber;
 import com.jcwhatever.nucleus.utils.observer.future.Result;
-
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
 
+import javax.annotation.Nullable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link Vector} for {@link ICompoundDataHandler}.
@@ -27,6 +26,7 @@ public class VectorHandler implements ICompoundDataHandler {
     };
 
     private ISqlTable _table;
+    private boolean _isLoaded;
 
     /**
      * Constructor.
@@ -48,8 +48,14 @@ public class VectorHandler implements ICompoundDataHandler {
                     @Override
                     public void on(Result<ISqlTable> result) {
                         _table = result.getResult();
+                        _isLoaded = true;
                     }
                 });
+    }
+
+    @Override
+    public boolean isLoaded() {
+        return _isLoaded;
     }
 
     @Override

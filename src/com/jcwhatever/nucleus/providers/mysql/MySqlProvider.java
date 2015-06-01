@@ -1,5 +1,6 @@
 package com.jcwhatever.nucleus.providers.mysql;
 
+import com.jcwhatever.nucleus.Nucleus;
 import com.jcwhatever.nucleus.providers.Provider;
 import com.jcwhatever.nucleus.providers.mysql.data.ItemStacksDataType;
 import com.jcwhatever.nucleus.providers.mysql.data.LocationDataType;
@@ -34,19 +35,23 @@ import com.jcwhatever.nucleus.providers.sql.ISqlProvider;
 import com.jcwhatever.nucleus.providers.sql.ISqlQueryResult;
 import com.jcwhatever.nucleus.providers.sql.ISqlResult;
 import com.jcwhatever.nucleus.providers.sql.datanode.ISqlDataNodeBuilder;
+import com.jcwhatever.nucleus.utils.DependencyRunner;
+import com.jcwhatever.nucleus.utils.DependencyRunner.DependencyStatus;
+import com.jcwhatever.nucleus.utils.DependencyRunner.IDependantRunnable;
+import com.jcwhatever.nucleus.utils.DependencyRunner.IFinishHandler;
 import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.observer.future.FutureResultAgent;
 import com.jcwhatever.nucleus.utils.observer.future.IFuture;
 import com.jcwhatever.nucleus.utils.observer.future.IFutureResult;
-
 import org.bukkit.plugin.Plugin;
 
+import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link ISqlProvider}.
@@ -178,9 +183,41 @@ public class MySqlProvider extends Provider implements ISqlProvider {
         PreCon.notNull(userName);
         PreCon.notNull(password);
 
-        Database database = new Database(address, databaseName, userName, password);
+        final Database database = new Database(address, databaseName, userName, password);
+        final FutureResultAgent<ISqlDatabase> agent = new FutureResultAgent<>();
 
-        return new FutureResultAgent<ISqlDatabase>().success(database);
+        DependencyRunner<IDependantRunnable> runner =
+                new DependencyRunner<IDependantRunnable>(Nucleus.getPlugin());
+
+        final IDependantRunnable dependantRunnable = new IDependantRunnable() {
+            @Override
+            public DependencyStatus getDependencyStatus() {
+
+                if (database.isLoaded())
+                    return DependencyStatus.READY;
+
+                return DependencyStatus.NOT_READY;
+            }
+
+            @Override
+            public void run() {
+                agent.success(database);
+            }
+        };
+
+        runner.add(dependantRunnable);
+
+        runner.onFinish(new IFinishHandler<IDependantRunnable>() {
+            @Override
+            public void onFinish(List<IDependantRunnable> notRun) {
+                if (notRun.contains(dependantRunnable))
+                    agent.error(null, "Failed to load database '{0}'.", database.getName());
+            }
+        });
+
+        runner.start();
+
+        return agent.getFuture();
     }
 
     public IFutureResult<ISqlResult> execute(Transaction transaction, FutureResultAgent<ISqlResult> agent) {

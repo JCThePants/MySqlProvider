@@ -8,14 +8,13 @@ import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.coords.SyncLocation;
 import com.jcwhatever.nucleus.utils.observer.future.FutureResultSubscriber;
 import com.jcwhatever.nucleus.utils.observer.future.Result;
-
 import org.bukkit.Location;
 import org.bukkit.World;
 
+import javax.annotation.Nullable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link ICompoundDataHandler} for {@link Location}.
@@ -30,6 +29,7 @@ public class LocationHandler implements ICompoundDataHandler {
     };
 
     private ISqlTable _table;
+    private boolean _isLoaded;
 
     /**
      * Constructor.
@@ -54,8 +54,14 @@ public class LocationHandler implements ICompoundDataHandler {
                     @Override
                     public void on(Result<ISqlTable> result) {
                         _table = result.getResult();
+                        _isLoaded = true;
                     }
                 });
+    }
+
+    @Override
+    public boolean isLoaded() {
+        return _isLoaded;
     }
 
     @Override

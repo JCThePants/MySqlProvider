@@ -1,5 +1,6 @@
 package com.jcwhatever.nucleus.providers.mysql.compound;
 
+import com.jcwhatever.nucleus.mixins.ILoadable;
 import com.jcwhatever.nucleus.providers.sql.ISqlDatabase;
 import com.jcwhatever.nucleus.providers.sql.ISqlDbType;
 import com.jcwhatever.nucleus.utils.PreCon;
@@ -13,7 +14,7 @@ import javax.annotation.Nullable;
 /**
  * Manages compound data handlers.
  */
-public class CompoundDataManager {
+public class CompoundDataManager implements ILoadable {
 
     private final ISqlDatabase _database;
     private final LocationHandler _locationHandler;
@@ -32,6 +33,13 @@ public class CompoundDataManager {
         _locationHandler = new LocationHandler(database);
         _vectorHandler = new VectorHandler(database);
         _itemStackHandler = new ItemStackHandler(database);
+    }
+
+    @Override
+    public boolean isLoaded() {
+        return _locationHandler.isLoaded()
+                && _vectorHandler.isLoaded()
+                && _itemStackHandler.isLoaded();
     }
 
     /**
