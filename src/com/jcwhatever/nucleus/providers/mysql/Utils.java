@@ -39,6 +39,7 @@ public class Utils {
         values.clear();
 
         StringBuilder buffer = TempBuffers.STRING_BUILDERS.get();
+        buffer.setLength(0);
 
         buffer.append(statement);
         statement.setLength(0);
