@@ -42,12 +42,11 @@ import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateFinal;
 import com.jcwhatever.nucleus.storage.MemoryDataNode;
 import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.observer.future.FutureAgent;
-import com.jcwhatever.nucleus.utils.observer.future.FutureSubscriber;
 import com.jcwhatever.nucleus.utils.observer.future.IFuture;
 import com.jcwhatever.nucleus.utils.observer.future.IFuture.FutureStatus;
-
 import org.bukkit.plugin.Plugin;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -57,7 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link ISqlDataNode}.
@@ -67,6 +65,7 @@ public class SqlDataNode extends MemoryDataNode implements ISqlDataNode {
     private final Map<String, SqlNodeContext> _contextMap;
     private final Set<String> _dirtyNodes;
     private final Map<ISqlDatabase, Map<ISqlTable, Multimap<Object, SqlNodeContext>>> _contextByDb;
+    private final List<FutureAgent> _saveAgents;
 
     private IScheduledTask _saveTask;
 
@@ -86,6 +85,7 @@ public class SqlDataNode extends MemoryDataNode implements ISqlDataNode {
         _dirtyNodes = new HashSet<>(valueMap.size());
 
         _contextByDb = new HashMap<>(5);
+        _saveAgents = new ArrayList<>(10);
 
         for (SqlNodeValue value : valueMap.values()) {
 
@@ -170,26 +170,23 @@ public class SqlDataNode extends MemoryDataNode implements ISqlDataNode {
         if (_saveTask != null)
             return agent.cancel("Save is already in progress.");
 
+        _saveAgents.add(agent);
+
         if (getPlugin().isEnabled()) {
             _saveTask = Scheduler.runTaskLater(Nucleus.getPlugin(), 5, new Runnable() {
                 @Override
                 public void run() {
-                    save(agent);
+                    saveToDb();
                 }
             });
         } else {
-            save(agent);
+            saveToDb();
         }
 
-        return agent.getFuture().onStatus(new FutureSubscriber() {
-            @Override
-            public void on(FutureStatus status, @Nullable String message) {
-                _saveTask = null;
-            }
-        });
+        return agent.getFuture();
     }
 
-    private void save(final FutureAgent agent) {
+    private void saveToDb() {
 
         final List<ISqlTransaction> transactions = new ArrayList<>(_contextByDb.size());
 
@@ -248,7 +245,7 @@ public class SqlDataNode extends MemoryDataNode implements ISqlDataNode {
         cleanAll();
 
         if (transactions.size() == 0) {
-            agent.cancel("No changes.");
+            agentStatus(FutureStatus.CANCEL, "No changes.");
             return;
         }
 
@@ -265,9 +262,10 @@ public class SqlDataNode extends MemoryDataNode implements ISqlDataNode {
 
                             if (transactions.size() == 0) {
                                 if (failedTransactions.size() == 0) {
-                                    agent.success();
+                                    agentStatus(FutureStatus.SUCCESS);
                                 } else {
-                                    agent.error("{0} transaction(s) failed.", failedTransactions.size());
+                                    agentStatus(FutureStatus.ERROR,
+                                            "{0} transaction(s) failed.", failedTransactions.size());
                                 }
                             }
                         }
@@ -280,11 +278,25 @@ public class SqlDataNode extends MemoryDataNode implements ISqlDataNode {
                             failedTransactions.add(transaction);
 
                             if (transactions.size() == 0) {
-                                agent.error("{0} transaction(s) failed.", failedTransactions.size());
+                                agentStatus(FutureStatus.ERROR,
+                                        "{0} transaction(s) failed.", failedTransactions.size());
                             }
                         }
                     });
         }
+    }
+
+    private void agentStatus(FutureStatus status) {
+        agentStatus(status, null);
+    }
+
+    private void agentStatus(FutureStatus status, String message, Object... args) {
+
+        for (FutureAgent agent : _saveAgents) {
+            agent.sendStatus(status, message, args);
+        }
+        _saveAgents.clear();
+        _saveTask = null;
     }
 
     public static class SqlNodeValue {
