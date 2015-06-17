@@ -396,5 +396,10 @@ public class MySqlConnection implements Connection {
 
             return connection;
         }
+
+        @Override
+        protected Connection getMainSingleton(ISingletonFactory<Connection> factory) {
+            return null;
+        }
     }
 }
