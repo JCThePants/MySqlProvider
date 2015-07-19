@@ -243,46 +243,45 @@ public class Select implements ISqlSelect {
 
             for (int i = 0; i < columns.length; i++) {
 
-                if (columns[i].indexOf('.') == -1) {
-                    statement()
-                            .append(_table.getName())
-                            .append('.');
-                }
+                // handle compound value table columns
+                ISqlTableColumn column = definition.getColumn(columns[i]);
+                if (column != null && column.getDataType().isCompound()) {
 
-                statement().append(columns[i]);
+
+                    ICompoundDataHandler handler = manager.getHandler(column.getDataType());
+                    if (handler == null) {
+                        throw new UnsupportedOperationException("Data type not supported: "
+                                + column.getDataType().getName());
+                    }
+
+                    String[] columnNames = handler.getTable().getDefinition().getColumnNames();
+
+                    for (int c = 0; c < columnNames.length; c++) {
+
+                        statement()
+                                .append(handler.getTable().getName())
+                                .append('_')
+                                .append(columns[i])
+                                .append('.')
+                                .append(columnNames[c]);
+
+                        if (c < columnNames.length - 1)
+                            statement().append(',');
+                    }
+                }
+                else {
+
+                    if (columns[i].indexOf('.') == -1) {
+                        statement()
+                                .append(_table.getName())
+                                .append('.');
+                    }
+
+                    statement().append(columns[i]);
+                }
 
                 if (i < columns.length - 1)
                     statement().append(',');
-
-                // handle compound value table columns
-
-                ISqlTableColumn column = definition.getColumn(columns[i]);
-                if (column == null || !column.getDataType().isCompound())
-                    continue;
-
-                ICompoundDataHandler handler = manager.getHandler(column.getDataType());
-                if (handler == null) {
-                    throw new UnsupportedOperationException("Data type not supported: "
-                            + column.getDataType().getName());
-                }
-
-                String[] columnNames = handler.getTable().getDefinition().getColumnNames();
-
-                if (i >= columns.length - 1)
-                    statement().append(',');
-
-                for (int c=0; c < columnNames.length; c++) {
-
-                    statement()
-                            .append(handler.getTable().getName())
-                            .append('_')
-                            .append(columns[i])
-                            .append('.')
-                            .append(columnNames[c]);
-
-                    if (c < columnNames.length - 1)
-                        statement().append(',');
-                }
             }
         }
 
