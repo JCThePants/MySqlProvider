@@ -6,6 +6,7 @@ import com.jcwhatever.nucleus.providers.sql.statement.ISqlStatement;
 import com.jcwhatever.nucleus.utils.ArrayUtils;
 import com.jcwhatever.nucleus.utils.PreCon;
 
+import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,7 +15,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.UUID;
-import javax.annotation.Nullable;
 
 /**
  * A statement that is finalized and ready to be executed.
@@ -187,7 +187,6 @@ public class FinalizedStatement implements ISqlStatement {
      * @throws SQLException
      */
     public ISqlQueryResult executeQuery() throws SQLException {
-
         PreparedStatement prepared = prepareStatement();
         ResultSet resultSet = prepared.executeQuery();
         return new StatementResult(this, resultSet);
@@ -209,11 +208,20 @@ public class FinalizedStatement implements ISqlStatement {
      * @throws SQLException
      */
     public PreparedStatement prepareStatement() throws SQLException {
+        return prepare(_sql, _values);
+    }
 
-        PreparedStatement statement = getConnection().prepareStatement(_sql);
+    @Override
+    public String toString() {
+        return _sql;
+    }
+
+    private PreparedStatement prepare(String sql, Object[] values) throws SQLException{
+
+        PreparedStatement statement = getConnection().prepareStatement(sql);
 
         int count = 1;
-        for (Object value : _values) {
+        for (Object value : values) {
 
             if (value instanceof String) {
                 statement.setString(count, (String) value);
@@ -251,10 +259,5 @@ public class FinalizedStatement implements ISqlStatement {
         }
 
         return statement;
-    }
-
-    @Override
-    public String toString() {
-        return _sql;
     }
 }

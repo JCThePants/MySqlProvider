@@ -2,20 +2,21 @@ package com.jcwhatever.nucleus.providers.mysql.statements;
 
 import com.jcwhatever.nucleus.providers.mysql.compound.CompoundValue;
 import com.jcwhatever.nucleus.providers.mysql.table.Table;
+import com.jcwhatever.nucleus.providers.sql.ISqlTable;
 import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition.ISqlTableColumn;
 import com.jcwhatever.nucleus.providers.sql.statement.mixins.ISqlOperator;
 import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.Rand;
 import com.jcwhatever.nucleus.utils.converters.IConverter;
 
+import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.List;
-import javax.annotation.Nullable;
 
 /**
  * Abstract implementation of {@link ISqlOperator}
  */
- abstract class AbstractOperator<T> implements ISqlOperator<T> {
+abstract class AbstractOperator<T> implements ISqlOperator<T> {
 
     String currentColumn;
     private final Statement _statement;
@@ -80,6 +81,11 @@ import javax.annotation.Nullable;
     }
 
     @Override
+    public T isEqualToColumn(ISqlTable table, String columnName) {
+        return singleColumn("=", table, columnName);
+    }
+
+    @Override
     public T isEqualToAnyColumn(String... columnNames) {
         return anyColumn("=", columnNames);
     }
@@ -102,6 +108,11 @@ import javax.annotation.Nullable;
     @Override
     public T isNotEqualToColumn(String columnName) {
         return singleColumn("!=", columnName);
+    }
+
+    @Override
+    public T isNotEqualToColumn(ISqlTable table, String columnName) {
+        return singleColumn("!=", table, columnName);
     }
 
     @Override
@@ -137,6 +148,11 @@ import javax.annotation.Nullable;
     @Override
     public T isGreaterThanColumn(String columnName) {
         return singleColumn(">", columnName);
+    }
+
+    @Override
+    public T isGreaterThanColumn(ISqlTable table, String columnName) {
+        return singleColumn(">", table, columnName);
     }
 
     @Override
@@ -180,6 +196,11 @@ import javax.annotation.Nullable;
     }
 
     @Override
+    public T isGreaterOrEqualToColumn(ISqlTable table, String columnName) {
+        return singleColumn(">=", table, columnName);
+    }
+
+    @Override
     public T isGreaterOrEqualToAnyColumn(String... columnNames) {
         return anyColumn(">=", columnNames);
     }
@@ -220,6 +241,11 @@ import javax.annotation.Nullable;
     }
 
     @Override
+    public T isLessThanColumn(ISqlTable table, String columnName) {
+        return singleColumn("<", table, columnName);
+    }
+
+    @Override
     public T isLessThanAnyColumn(String... columnNames) {
         return anyColumn("<", columnNames);
     }
@@ -246,7 +272,7 @@ import javax.annotation.Nullable;
 
     @Override
     public <T1, T2> T isLessOrEqualToAny(Collection<T1> values, IConverter<T1, T2> converter) {
-        return anyValue("<=", values , converter);
+        return anyValue("<=", values, converter);
     }
 
     @Override
@@ -257,6 +283,11 @@ import javax.annotation.Nullable;
     @Override
     public T isLessOrEqualToColumn(String columnName) {
         return singleColumn("<=", columnName);
+    }
+
+    @Override
+    public T isLessOrEqualToColumn(ISqlTable table, String columnName) {
+        return singleColumn("<=", table, columnName);
     }
 
     @Override
@@ -281,9 +312,33 @@ import javax.annotation.Nullable;
         PreCon.notNullOrEmpty(columnName);
         assertNotFinalized();
 
+        statement().append(operator);
+
+        if (isName(columnName)) {
+            statement()
+                    .append('`')
+                    .append(columnName)
+                    .append('`');
+        }
+        else {
+            statement().append(columnName);
+        }
+
+        return getConditionOperator();
+    }
+
+    private T singleColumn(String operator, ISqlTable table, String columnName) {
+        PreCon.notNullOrEmpty(columnName);
+        assertNotFinalized();
+
+        statement().append(operator);
+
         statement()
-                .append(operator)
-                .append(columnName);
+                .append('`')
+                .append(table.getName())
+                .append("`.`")
+                .append(columnName)
+                .append('`');
 
         return getConditionOperator();
     }
@@ -320,9 +375,17 @@ import javax.annotation.Nullable;
         for (T1 value : values) {
 
             if (count != 0) {
-                statement()
-                        .append(conditionOperator)
-                        .append(currentColumn);
+                statement().append(conditionOperator);
+
+                if (isName(currentColumn)) {
+                    statement()
+                            .append('`')
+                            .append(currentColumn)
+                            .append('`');
+                }
+                else {
+                    statement().append(currentColumn);
+                }
             }
 
             statement().append(operator);
@@ -345,14 +408,30 @@ import javax.annotation.Nullable;
         for (int i=0; i < columnNames.length; i++) {
 
             if (i != 0) {
-                statement()
-                        .append(conditionOperator)
-                        .append(currentColumn);
+                statement().append(conditionOperator);
+
+                if (isName(currentColumn)) {
+                    statement()
+                            .append('`')
+                            .append(currentColumn)
+                            .append('`');
+                }
+                else {
+                    statement().append(currentColumn);
+                }
             }
 
-            statement()
-                    .append(operator)
-                    .append(columnNames[i]);
+            statement().append(operator);
+
+            if (isName(columnNames[i])) {
+                statement()
+                        .append('`')
+                        .append(columnNames[i])
+                        .append('`');
+            }
+            else {
+                statement().append(columnNames[i]);
+            }
         }
 
         statement().append(')');
@@ -399,5 +478,14 @@ import javax.annotation.Nullable;
 
     private List<Object> values() {
         return _statement.getValues();
+    }
+
+    private boolean isName(String name) {
+        for (int i=0; i < name.length(); i++) {
+            if (".+-<>= ".indexOf(name.charAt(i)) != -1) {
+                return false;
+            }
+        }
+        return true;
     }
 }

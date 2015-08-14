@@ -5,13 +5,16 @@ import com.jcwhatever.nucleus.collections.ArrayQueue;
 import com.jcwhatever.nucleus.managed.scheduler.Scheduler;
 import com.jcwhatever.nucleus.mixins.IDisposable;
 import com.jcwhatever.nucleus.providers.mysql.statements.FinalizedStatements.ExecuteResult;
+import com.jcwhatever.nucleus.providers.mysql.table.Table;
 import com.jcwhatever.nucleus.providers.sql.ISqlResult;
 import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.observer.future.FutureResultAgent;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Queue;
 
@@ -194,12 +197,27 @@ public class StatementExecutor implements IDisposable {
                 connection.setAutoCommit(true);
 
                 isSuccess = true;
-
             }
             catch (SQLException e) {
                 e.printStackTrace();
                 isSuccess = false;
                 errorMessage = e.getMessage();
+            }
+
+            try {
+                // remove temp tables
+                Collection<Table> tables = transaction.getTempTables();
+                for (Table table : tables) {
+
+                    PreparedStatement statement = connection.prepareStatement(
+                            "DROP TEMPORARY TABLE IF EXISTS " + table.getName());
+
+                    statement.execute();
+                    table.setRemoved();
+                }
+            }
+            catch (SQLException e) {
+                e.printStackTrace();
             }
         }
 

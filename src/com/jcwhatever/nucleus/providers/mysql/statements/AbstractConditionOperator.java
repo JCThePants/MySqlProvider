@@ -1,5 +1,6 @@
 package com.jcwhatever.nucleus.providers.mysql.statements;
 
+import com.jcwhatever.nucleus.providers.sql.ISqlTable;
 import com.jcwhatever.nucleus.providers.sql.statement.mixins.ISqlLogicalOperator;
 import com.jcwhatever.nucleus.utils.PreCon;
 
@@ -41,9 +42,36 @@ abstract class AbstractConditionOperator<T> implements ISqlLogicalOperator<T> {
         PreCon.notNullOrEmpty(column);
         assertNotFinalized();
 
+        statement().append(" AND ");
+
+        if (isName(column)) {
+            statement()
+                    .append('`')
+                    .append(column)
+                    .append('`');
+        }
+        else {
+            statement().append(column);
+        }
+
+        setCurrentColumn(column);
+
+        return getOperator();
+    }
+
+    @Override
+    public T and(ISqlTable table, String column) {
+        PreCon.notNull(table);
+        PreCon.notNullOrEmpty(column);
+        assertNotFinalized();
+
         statement()
                 .append(" AND ")
-                .append(column);
+                .append('`')
+                .append(table.getName())
+                .append("`.`")
+                .append(column)
+                .append('`');
 
         setCurrentColumn(column);
 
@@ -55,9 +83,36 @@ abstract class AbstractConditionOperator<T> implements ISqlLogicalOperator<T> {
         PreCon.notNullOrEmpty(column);
         assertNotFinalized();
 
+        statement().append(" OR ");
+
+        if (isName(column)) {
+            statement()
+                    .append('`')
+                    .append(column)
+                    .append('`');
+        }
+        else {
+            statement().append(column);
+        }
+
+        setCurrentColumn(column);
+
+        return getOperator();
+    }
+
+    @Override
+    public T or(ISqlTable table, String column) {
+        PreCon.notNull(table);
+        PreCon.notNullOrEmpty(column);
+        assertNotFinalized();
+
         statement()
                 .append(" OR ")
-                .append(column);
+                .append('`')
+                .append(table.getName())
+                .append("`.`")
+                .append(column)
+                .append('`');
 
         setCurrentColumn(column);
 
@@ -66,5 +121,14 @@ abstract class AbstractConditionOperator<T> implements ISqlLogicalOperator<T> {
 
     private StringBuilder statement() {
         return _statement.getBuffer();
+    }
+
+    private boolean isName(String name) {
+        for (int i=0; i < name.length(); i++) {
+            if (".+-<>= ".indexOf(name.charAt(i)) != -1) {
+                return false;
+            }
+        }
+        return true;
     }
 }

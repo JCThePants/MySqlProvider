@@ -6,8 +6,8 @@ import com.jcwhatever.nucleus.providers.sql.ISqlTableBuilder;
 import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition.ISqlTableColumn;
 import com.jcwhatever.nucleus.utils.PreCon;
 
-import java.util.Queue;
 import javax.annotation.Nullable;
+import java.util.Queue;
 
 /**
  * Implementation of {@link ISqlTableBuilder}.
@@ -24,6 +24,7 @@ public class TableBuilder implements ISqlTableBuilder {
 
     private TableColumnDefinition _column;
     private boolean _usageReadInsert;
+    private boolean _usageTemp;
     private String _engine;
 
     @Override
@@ -35,6 +36,12 @@ public class TableBuilder implements ISqlTableBuilder {
     @Override
     public Transact usageReadInsertUpdate() {
         return _transact;
+    }
+
+    @Override
+    public Columns usageTemporary() {
+        _usageTemp = true;
+        return _columnConstraints;
     }
 
     @Override
@@ -215,7 +222,7 @@ public class TableBuilder implements ISqlTableBuilder {
             _column = null;
 
             ISqlTableColumn[] columns = _columns.toArray(new ISqlTableColumn[_columns.size()]);
-            return new TableDefinition(columns, _engine);
+            return new TableDefinition(columns, _engine, _usageTemp);
         }
     }
 }

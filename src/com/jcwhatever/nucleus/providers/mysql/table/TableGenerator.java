@@ -36,20 +36,22 @@ public class TableGenerator {
         _definition = definition;
     }
 
-    /**
-     * Get finalized statement used to create the table.
-     */
-    public FinalizedStatements getFinalized() {
+    public void getSql(StringBuilder output, List<Object> outputValues) {
 
-        Statement unfinalized = new Statement(_database, 100, 0);
+        if (_definition.isTemp()) {
 
-        //noinspection MismatchedQueryAndUpdateOfStringBuilder
-        StringBuilder statement = unfinalized.getBuffer();
+            output
+                    .append("CREATE TEMPORARY TABLE IF NOT EXISTS `")
+                    .append(_name)
+                    .append("` (");
+        }
+        else {
 
-        statement
-                .append("CREATE TABLE IF NOT EXISTS ")
-                .append(_name)
-                .append(" (");
+            output
+                    .append("CREATE TABLE IF NOT EXISTS `")
+                    .append(_name)
+                    .append("` (");
+        }
 
         ISqlTableColumn[] columns = _definition.getColumns();
 
@@ -80,13 +82,14 @@ public class TableGenerator {
 
                 ISqlDbType handlerType = handlerPrimary.getDataType();
 
-                statement
+                output
+                        .append('`')
                         .append(column.getName())
-                        .append(' ')
+                        .append("` ")
                         .append(handlerType.getName());
 
                 if (handlerType.size() > 0) {
-                    statement
+                    output
                             .append('(')
                             .append(handlerType.size())
                             .append(')');
@@ -107,13 +110,14 @@ public class TableGenerator {
                 foreign.add(columnDefinition);
             }
             else {
-                statement
+                output
+                        .append('`')
                         .append(column.getName())
-                        .append(' ')
+                        .append("` ")
                         .append(type.getName());
 
                 if (type.size() > 0) {
-                    statement
+                    output
                             .append('(')
                             .append(type.size())
                             .append(')');
@@ -123,20 +127,20 @@ public class TableGenerator {
                 if (column.isPrimary()) {
                     primary.add(column);
                 } else if (column.isUnique()) {
-                    statement.append(" UNIQUE");
+                    output.append(" UNIQUE");
                 }
 
                 // append "not null"
                 if (!column.isNullable() || column.isPrimary()) {
-                    statement.append(" NOT NULL");
+                    output.append(" NOT NULL");
                 }
 
                 // append auto increment
                 if (column.isAutoIncrement()) {
-                    statement.append(" AUTO_INCREMENT");
+                    output.append(" AUTO_INCREMENT");
 
                     if (column.getAutoIncrementStart() > 0) {
-                        statement
+                        output
                                 .append('=')
                                 .append(column.getAutoIncrementStart());
                     }
@@ -149,33 +153,33 @@ public class TableGenerator {
                 // append default value
                 if (column.hasDefaultValue()) {
 
-                    statement.append(" DEFAULT ?");
-                    unfinalized.getValues().add(column.getDefaultValue());
+                    output.append(" DEFAULT ?");
+                    outputValues.add(column.getDefaultValue());
                 }
             }
 
             if (i < columns.length - 1)
-                statement.append(',');
+                output.append(',');
         }
 
         // append primary key
         if (!primary.isEmpty()) {
-            statement.append(", PRIMARY KEY (");
+            output.append(", PRIMARY KEY (");
 
             for (int i=0; i < primary.size(); i++) {
-                statement.append(primary.get(i).getName());
+                output.append(primary.get(i).getName());
 
                 if (i < primary.size() - 1)
-                    statement.append(',');
+                    output.append(',');
             }
 
-            statement.append(')');
+            output.append(')');
         }
 
         // append foreign keys
         for (ISqlTableColumn column : foreign) {
 
-            statement
+            output
                     .append(",FOREIGN KEY (")
                     .append(column.getName())
                     .append(") REFERENCES ")
@@ -185,7 +189,7 @@ public class TableGenerator {
                     .append(')');
 
             if (column.isCascadeDelete()) {
-                statement.append(" ON DELETE CASCADE");
+                output.append(" ON DELETE CASCADE");
             }
         }
 
@@ -196,26 +200,39 @@ public class TableGenerator {
             if (indexColumns.isEmpty())
                 continue;
 
-            statement.append(",INDEX (");
+            output.append(",INDEX (");
 
             for (int i=0; i < indexColumns.size(); i++) {
 
-                statement.append(indexColumns.get(i).getName());
+                output.append(indexColumns.get(i).getName());
 
                 if (i < indexColumns.size() - 1)
-                    statement.append(',');
+                    output.append(',');
             }
 
-            statement.append(')');
+            output.append(')');
         }
 
-        statement.append(')');
+        output.append(')');
 
-        if (_definition.getEngineName() != null) {
-            statement
+        if (_definition.getEngineName() != null && !_definition.isTemp()) {
+            output
                     .append(" ENGINE ")
                     .append(_definition.getEngineName());
         }
+    }
+
+    /**
+     * Get finalized statement used to create the table.
+     */
+    public FinalizedStatements getFinalized() {
+
+        Statement unfinalized = new Statement(_database, 100, 0);
+
+        //noinspection MismatchedQueryAndUpdateOfStringBuilder
+        StringBuilder statement = unfinalized.getBuffer();
+
+        getSql(statement, unfinalized.getValues());
 
         unfinalized.finalizeStatement(_database.getConnection());
 

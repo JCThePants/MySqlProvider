@@ -222,7 +222,7 @@ public class SqlDataNode extends MemoryDataNode implements ISqlDataNode {
                             transaction = dbEntry.getKey().createTransaction();
                         }
 
-                        updateFinal = update.set(context.columnName, getRoot().get(context.nodeName));
+                        updateFinal = update.set(context.columnName).value(getRoot().get(context.nodeName));
                     }
 
                     if (update != null) {

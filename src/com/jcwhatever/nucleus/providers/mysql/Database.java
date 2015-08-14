@@ -78,6 +78,7 @@ public class Database implements ISqlDatabase {
     public IFutureResult<ISqlTable> createTable(final String name, final ISqlTableDefinition definition) {
         PreCon.notNull(name);
         PreCon.notNull(definition);
+        PreCon.isValid(!definition.isTemp(), "Cannot create a temporary table outside of a transaction.");
 
         final FutureResultAgent<ISqlTable> agent = new FutureResultAgent<>();
 
@@ -91,7 +92,7 @@ public class Database implements ISqlDatabase {
                 .onSuccess(new FutureResultSubscriber<ISqlResult>() {
                     @Override
                     public void on(Result<ISqlResult> result) {
-                        Table table = new Table(name, Database.this, definition);
+                        Table table = new Table(name, Database.this, definition, null);
                         _tableMap.put(name, table);
                         agent.success(table);
                     }

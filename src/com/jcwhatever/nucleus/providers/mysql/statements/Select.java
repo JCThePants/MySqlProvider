@@ -8,10 +8,15 @@ import com.jcwhatever.nucleus.providers.sql.ISqlResult;
 import com.jcwhatever.nucleus.providers.sql.ISqlTable;
 import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition;
 import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition.ISqlTableColumn;
+import com.jcwhatever.nucleus.providers.sql.statement.ISqlNextStatementBuilder;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlStatement;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlTransaction;
+import com.jcwhatever.nucleus.providers.sql.statement.generators.IOrderGenerator;
+import com.jcwhatever.nucleus.providers.sql.statement.generators.SqlColumnOrder;
+import com.jcwhatever.nucleus.providers.sql.statement.mixins.ISqlBuildOrExecute;
+import com.jcwhatever.nucleus.providers.sql.SqlOrder;
 import com.jcwhatever.nucleus.providers.sql.statement.select.ISqlSelect;
-import com.jcwhatever.nucleus.providers.sql.statement.select.ISqlSelectClause;
+import com.jcwhatever.nucleus.providers.sql.statement.select.ISqlSelectFinal;
 import com.jcwhatever.nucleus.providers.sql.statement.select.ISqlSelectJoin;
 import com.jcwhatever.nucleus.providers.sql.statement.select.ISqlSelectJoinClause;
 import com.jcwhatever.nucleus.providers.sql.statement.select.ISqlSelectLogicalOperator;
@@ -38,10 +43,11 @@ public class Select implements ISqlSelect {
 
     private Operator _operator;
     private BoolOperator _boolOperator;
-    private Where _where = new Where();
-    private Clause _clause = new Clause();
-    private Join _join = new Join();
-    private JoinClause _joinClause = new JoinClause();
+    private final Where _where = new Where();
+    private final Join _join = new Join();
+    private final JoinClause _joinClause = new JoinClause();
+    private final Final _final = new Final();
+
     private boolean _isSelectInto;
     private boolean _isFinalized;
     private boolean _selectAll;
@@ -77,7 +83,7 @@ public class Select implements ISqlSelect {
         _isSelectInto = true;
 
         statement()
-                .append("INSERT INTO ")
+                .append("SELECT INTO ")
                 .append(tableName)
                 .append(" (");
 
@@ -85,12 +91,17 @@ public class Select implements ISqlSelect {
 
         for (int i=0; i < columns.length; i++) {
 
-            if (columns[i].indexOf('.') == -1) {
+            if (isName(columns[i])) {
                 statement()
+                        .append('`')
                         .append(tableName)
-                        .append('.');
+                        .append("`.`")
+                        .append(columns[i])
+                        .append('`');
             }
-            statement().append(columns[i]);
+            else {
+                statement().append(columns[i]);
+            }
 
             if (i < columns.length - 1)
                 statement().append(',');
@@ -100,9 +111,11 @@ public class Select implements ISqlSelect {
 
         for (int i=0; i < columns.length; i++) {
             statement()
+                    .append('`')
                     .append(_table.getName())
-                    .append('.')
-                    .append(columns[i]);
+                    .append("`.`")
+                    .append(columns[i])
+                    .append('`');
 
             if (i < columns.length - 1)
                 statement().append(',');
@@ -126,8 +139,20 @@ public class Select implements ISqlSelect {
     }
 
     @Override
+    public Operator where(ISqlTable table, String column) {
+        writeBeginning();
+        return _where.where(table, column);
+    }
+
+    @Override
     public IFutureResult<ISqlResult> execute() {
         finalizeStatement();
+
+        if (_table.getDefinition().isTemp()) {
+            throw new IllegalStateException(
+                    "Cannot execute statement on a temporary table outside of a transaction.");
+        }
+
         return MySqlProvider.getProvider().execute(_statement.getFinalized());
     }
 
@@ -183,27 +208,66 @@ public class Select implements ISqlSelect {
     }
 
     @Override
-    public Clause limit(int count) {
+    public Final limit(int count) {
         writeBeginning();
-        return _clause.limit(count);
+        return _final.limit(count);
     }
 
     @Override
-    public Clause limit(int offset, int count) {
+    public Final limit(int offset, int count) {
         writeBeginning();
-        return _clause.limit(offset, count);
+        return _final.limit(offset, count);
     }
 
     @Override
-    public Clause orderByAscend(String columnName) {
+    public Final orderByAscend(String columnName) {
         writeBeginning();
-        return _clause.orderByAscend(columnName);
+        return _final.orderByAscend(columnName);
     }
 
     @Override
-    public Clause orderByDescend(String columnName) {
+    public Final orderByAscend(ISqlTable table, String columnName) {
         writeBeginning();
-        return _clause.orderByDescend(columnName);
+        return _final.orderByAscend(table, columnName);
+    }
+
+    @Override
+    public Final orderByDescend(String columnName) {
+        writeBeginning();
+        return _final.orderByDescend(columnName);
+    }
+
+    @Override
+    public Final orderByDescend(ISqlTable table, String columnName) {
+        writeBeginning();
+        return _final.orderByDescend(table, columnName);
+    }
+
+    @Override
+    public Final orderBy(String columnName, SqlOrder order) {
+        writeBeginning();
+        return _final.orderBy(columnName, order);
+    }
+
+    @Override
+    public Final orderBy(ISqlTable table, String columnName, SqlOrder order) {
+        writeBeginning();
+        return _final.orderBy(table, columnName, order);
+    }
+
+    @Override
+    public Final orderBy(IOrderGenerator orderGenerator) {
+        writeBeginning();
+        return _final.orderBy(orderGenerator);
+    }
+
+    private boolean isName(String name) {
+        for (int i=0; i < name.length(); i++) {
+            if (".+-<>= ".indexOf(name.charAt(i)) != -1) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private FinalizedStatement finalizeStatement() {
@@ -259,11 +323,13 @@ public class Select implements ISqlSelect {
                     for (int c = 0; c < columnNames.length; c++) {
 
                         statement()
+                                .append('`')
                                 .append(handler.getTable().getName())
                                 .append('_')
                                 .append(columns[i])
-                                .append('.')
-                                .append(columnNames[c]);
+                                .append("`.`")
+                                .append(columnNames[c])
+                                .append('`');
 
                         if (c < columnNames.length - 1)
                             statement().append(',');
@@ -271,13 +337,17 @@ public class Select implements ISqlSelect {
                 }
                 else {
 
-                    if (columns[i].indexOf('.') == -1) {
+                    if (isName(columns[i])) {
                         statement()
+                                .append('`')
                                 .append(_table.getName())
-                                .append('.');
+                                .append("`.`")
+                                .append(columns[i])
+                                .append('`');
                     }
-
-                    statement().append(columns[i]);
+                    else {
+                        statement().append(columns[i]);
+                    }
                 }
 
                 if (i < columns.length - 1)
@@ -286,8 +356,9 @@ public class Select implements ISqlSelect {
         }
 
         statement()
-                .append(" FROM ")
-                .append(_table.getName());
+                .append(" FROM `")
+                .append(_table.getName())
+                .append('`');
 
         if (_table.getDefinition().hasCompoundDataTypes()) {
             writeCompoundStatements();
@@ -319,23 +390,23 @@ public class Select implements ISqlSelect {
                         + table.getName());
 
             statement()
-                    .append(" INNER JOIN ")
+                    .append(" INNER JOIN `")
                     .append(table.getName())
-                    .append(" AS ")
+                    .append("` AS `")
                     .append(table.getName())
                     .append('_')
                     .append(column.getName())
-                    .append(" ON ")
+                    .append("` ON `")
                     .append(_table.getName())
-                    .append('.')
+                    .append("`.`")
                     .append(column.getName())
-                    .append('=')
+                    .append("`=`")
                     .append(table.getName())
                     .append('_')
                     .append(column.getName())
-                    .append('.')
+                    .append("`.`")
                     .append(primary.getName())
-            ;
+                    .append('`');
         }
     }
 
@@ -359,24 +430,10 @@ public class Select implements ISqlSelect {
     }
 
     @Override
-    public JoinClause innerJoin(ISqlTable table, String alias) {
-        _hasJoins = true;
-        writeBeginning();
-        return _join.innerJoin(table, alias);
-    }
-
-    @Override
     public JoinClause leftJoin(ISqlTable table) {
         _hasJoins = true;
         writeBeginning();
         return _join.leftJoin(table);
-    }
-
-    @Override
-    public JoinClause leftJoin(ISqlTable table, String alias) {
-        _hasJoins = true;
-        writeBeginning();
-        return _join.leftJoin(table, alias);
     }
 
     @Override
@@ -386,14 +443,9 @@ public class Select implements ISqlSelect {
         return _join.rightJoin(table);
     }
 
-    @Override
-    public JoinClause rightJoin(ISqlTable table, String alias) {
-        _hasJoins = true;
-        writeBeginning();
-        return _join.rightJoin(table, alias);
-    }
-
     private class Join implements ISqlSelectJoin {
+
+        private String _currentJoinTable;
 
         @Override
         public JoinClause innerJoin(ISqlTable table) {
@@ -401,23 +453,11 @@ public class Select implements ISqlSelect {
             assertNotFinalized();
 
             statement()
-                    .append(" INNER JOIN ")
-                    .append(table.getName());
-
-            return _joinClause;
-        }
-
-        @Override
-        public JoinClause innerJoin(ISqlTable table, String alias) {
-            PreCon.notNull(table);
-            PreCon.notNullOrEmpty(alias);
-            assertNotFinalized();
-
-            statement()
-                    .append(" INNER JOIN ")
+                    .append(" INNER JOIN `")
                     .append(table.getName())
-                    .append(' ')
-                    .append(alias);
+                    .append('`');
+
+            _currentJoinTable = '`' + table.getName() + '`';
 
             return _joinClause;
         }
@@ -428,23 +468,11 @@ public class Select implements ISqlSelect {
             assertNotFinalized();
 
             statement()
-                    .append(" LEFT JOIN ")
-                    .append(table.getName());
-
-            return _joinClause;
-        }
-
-        @Override
-        public JoinClause leftJoin(ISqlTable table, String alias) {
-            PreCon.notNull(table);
-            PreCon.notNullOrEmpty(alias);
-            assertNotFinalized();
-
-            statement()
-                    .append(" LEFT JOIN ")
+                    .append(" LEFT JOIN `")
                     .append(table.getName())
-                    .append(' ')
-                    .append(alias);
+                    .append('`');
+
+            _currentJoinTable = '`' + table.getName() + '`';
 
             return _joinClause;
         }
@@ -455,23 +483,11 @@ public class Select implements ISqlSelect {
             assertNotFinalized();
 
             statement()
-                    .append(" RIGHT JOIN ")
-                    .append(table.getName());
-
-            return _joinClause;
-        }
-
-        @Override
-        public JoinClause rightJoin(ISqlTable table, String alias) {
-            PreCon.notNull(table);
-            PreCon.notNullOrEmpty(alias);
-            assertNotFinalized();
-
-            statement()
-                    .append(" RIGHT JOIN ")
+                    .append(" RIGHT JOIN `")
                     .append(table.getName())
-                    .append(' ')
-                    .append(alias);
+                    .append('`');
+
+            _currentJoinTable = '`' + table.getName() + '`';
 
             return _joinClause;
         }
@@ -479,6 +495,11 @@ public class Select implements ISqlSelect {
         @Override
         public Operator where(String column) {
             return _where.where(column);
+        }
+
+        @Override
+        public Operator where(ISqlTable table, String column) {
+            return _where.where(table, column);
         }
 
         @Override
@@ -517,6 +538,51 @@ public class Select implements ISqlSelect {
         }
 
         @Override
+        public Final limit(int count) {
+            return _final.limit(count);
+        }
+
+        @Override
+        public Final limit(int offset, int count) {
+            return _final.limit(offset, count);
+        }
+
+        @Override
+        public Final orderByAscend(String columnName) {
+            return _final.orderByAscend(columnName);
+        }
+
+        @Override
+        public Final orderByAscend(ISqlTable table, String columnName) {
+            return _final.orderByAscend(table, columnName);
+        }
+
+        @Override
+        public Final orderByDescend(String columnName) {
+            return _final.orderByDescend(columnName);
+        }
+
+        @Override
+        public Final orderByDescend(ISqlTable table, String columnName) {
+            return _final.orderByDescend(table, columnName);
+        }
+
+        @Override
+        public Final orderBy(String columnName, SqlOrder order) {
+            return _final.orderBy(columnName, order);
+        }
+
+        @Override
+        public Final orderBy(ISqlTable table, String columnName, SqlOrder order) {
+            return _final.orderBy(table, columnName, order);
+        }
+
+        @Override
+        public Final orderBy(IOrderGenerator orderGenerator) {
+            return _final.orderBy(orderGenerator);
+        }
+
+        @Override
         public String toString() {
             return Select.this.toString();
         }
@@ -530,13 +596,18 @@ public class Select implements ISqlSelect {
         }
 
         @Override
+        public ISqlSelectOperator where(ISqlTable table, String column) {
+            return _where.where(table, column);
+        }
+
+        @Override
         public Join on(String column) {
             PreCon.notNullOrEmpty(column);
 
             String[] nameArray = TextUtils.PATTERN_DOT.split(column);
             String name = nameArray[nameArray.length - 1];
 
-            return on(column, _table.getName() + '.' + name);
+            return on(name, name);
         }
 
         @Override
@@ -544,14 +615,30 @@ public class Select implements ISqlSelect {
             PreCon.notNullOrEmpty(column);
             PreCon.notNullOrEmpty(otherColumn);
 
-            if (otherColumn.indexOf('.') == -1)
-                otherColumn = _table.getName() + '.' + otherColumn;
+            statement().append(" ON ");
 
-            statement()
-                    .append(" ON ")
-                    .append(column)
-                    .append('=')
-                    .append(otherColumn);
+            if (isName(column)) {
+                statement()
+                        .append(_join._currentJoinTable)
+                        .append(".`")
+                        .append(column)
+                        .append("`=");
+            }
+            else {
+                statement().append(column);
+            }
+
+            if (isName(otherColumn)) {
+                statement()
+                        .append('`')
+                        .append(_table.getName())
+                        .append("`.`")
+                        .append(otherColumn)
+                        .append('`');
+            }
+            else {
+                statement().append(otherColumn);
+            }
 
             return _join;
         }
@@ -592,120 +679,53 @@ public class Select implements ISqlSelect {
         }
 
         @Override
-        public String toString() {
-            return Select.this.toString();
-        }
-    }
-
-    private class Clause implements ISqlSelectClause {
-
-        boolean isLimited;
-        boolean isOrdered;
-
-        @Override
-        public Clause limit(int count) {
-            PreCon.positiveNumber(count);
-            PreCon.isValid(!_isSelectInto, "LIMIT is not supported by the SELECT INTO statement.");
-            PreCon.isValid(!isLimited, "LIMIT has already been set.");
-
-            isLimited = true;
-
-            statement()
-                    .append(" LIMIT ")
-                    .append(count);
-            return this;
+        public Final limit(int count) {
+            return _final.limit(count);
         }
 
         @Override
-        public Clause limit(int offset, int count) {
-            PreCon.positiveNumber(offset);
-            PreCon.positiveNumber(count);
-            PreCon.isValid(!_isSelectInto, "LIMIT is not supported by the SELECT INTO statement.");
-            PreCon.isValid(!isLimited, "LIMIT has already been set.");
-
-            isLimited = true;
-
-            statement()
-                    .append(" LIMIT ")
-                    .append(offset)
-                    .append(',')
-                    .append(count);
-
-            return this;
+        public Final orderByAscend(String columnName) {
+            return _final.orderByAscend(columnName);
         }
 
         @Override
-        public Clause orderByAscend(String columnName) {
-            PreCon.notNullOrEmpty(columnName);
-            PreCon.isValid(!_isSelectInto, "Column order is not supported by the SELECT INTO statement.");
-
-            appendOrder(columnName);
-            statement().append(" ASC");
-            isOrdered = true;
-
-            return this;
+        public Final orderByAscend(ISqlTable table, String columnName) {
+            return _final.orderByAscend(table, columnName);
         }
 
         @Override
-        public Clause orderByDescend(String columnName) {
-            PreCon.notNullOrEmpty(columnName);
-            PreCon.isValid(!_isSelectInto, "Column order is not supported by the SELECT INTO statement.");
-
-            appendOrder(columnName);
-            statement().append(" DESC");
-            isOrdered = true;
-
-            return this;
+        public Final orderByDescend(String columnName) {
+            return _final.orderByDescend(columnName);
         }
 
         @Override
-        public IFutureResult<ISqlResult> execute() {
-            return Select.this.execute();
+        public Final orderByDescend(ISqlTable table, String columnName) {
+            return _final.orderByDescend(table, columnName);
         }
 
         @Override
-        public StatementBuilder endStatement() {
-            return Select.this.endStatement();
+        public Final orderBy(String columnName, SqlOrder order) {
+            return _final.orderBy(columnName, order);
         }
 
         @Override
-        public StatementBuilder setTable(ISqlTable table) {
-            return Select.this.setTable(table);
+        public Final orderBy(ISqlTable table, String columnName, SqlOrder order) {
+            return _final.orderBy(table, columnName, order);
         }
 
         @Override
-        public StatementBuilder commitTransaction() {
-            return Select.this.commitTransaction();
+        public Final orderBy(IOrderGenerator orderGenerator) {
+            return _final.orderBy(orderGenerator);
         }
 
         @Override
-        public PreparedStatement[] prepareStatements() throws SQLException {
-            return Select.this.prepareStatements();
-        }
-
-        @Override
-        public ISqlStatement getStatement() {
-            return Select.this.getStatement();
-        }
-
-        @Override
-        public IFutureResult<ISqlResult> addToTransaction(ISqlTransaction transaction) {
-            return Select.this.addToTransaction(transaction);
+        public Final limit(int offset, int count) {
+            return _final.limit(offset, count);
         }
 
         @Override
         public String toString() {
             return Select.this.toString();
-        }
-
-        private void appendOrder(String columnName) {
-            if (isOrdered) {
-                statement().append(',');
-            } else {
-                statement().append(" ORDER BY ");
-            }
-
-            statement().append(columnName);
         }
     }
 
@@ -717,9 +737,30 @@ public class Select implements ISqlSelect {
             assertNotFinalized();
 
             statement()
-                    .append(" WHERE ")
-                    .append(column);
+                    .append(" WHERE `")
+                    .append(column)
+                    .append('`');
 
+            _boolOperator = new BoolOperator();
+            _operator = new Operator();
+
+            _operator.currentColumn = column;
+
+            return _operator;
+        }
+
+        @Override
+        public Operator where(ISqlTable table, String column) {
+            PreCon.notNull(table);
+            PreCon.notNullOrEmpty(column);
+            assertNotFinalized();
+
+            statement()
+                    .append(" WHERE `")
+                    .append(table.getName())
+                    .append("`.`")
+                    .append(column)
+                    .append('`');
 
             _boolOperator = new BoolOperator();
             _operator = new Operator();
@@ -767,6 +808,51 @@ public class Select implements ISqlSelect {
         @Override
         public String toString() {
             return Select.this.toString();
+        }
+
+        @Override
+        public Final limit(int count) {
+            return _final.limit(count);
+        }
+
+        @Override
+        public Final limit(int offset, int count) {
+            return _final.limit(offset, count);
+        }
+
+        @Override
+        public Final orderByAscend(String columnName) {
+            return _final.orderByAscend(columnName);
+        }
+
+        @Override
+        public Final orderByAscend(ISqlTable table, String columnName) {
+            return _final.orderByAscend(table, columnName);
+        }
+
+        @Override
+        public Final orderByDescend(String columnName) {
+            return _final.orderByDescend(columnName);
+        }
+
+        @Override
+        public Final orderByDescend(ISqlTable table, String columnName) {
+            return _final.orderByDescend(table, columnName);
+        }
+
+        @Override
+        public Final orderBy(String columnName, SqlOrder order) {
+            return _final.orderBy(columnName, order);
+        }
+
+        @Override
+        public Final orderBy(ISqlTable table, String columnName, SqlOrder order) {
+            return _final.orderBy(table, columnName, order);
+        }
+
+        @Override
+        public Final orderBy(IOrderGenerator orderGenerator) {
+            return _final.orderBy(orderGenerator);
         }
     }
 
@@ -871,23 +957,198 @@ public class Select implements ISqlSelect {
         }
 
         @Override
-        public Clause limit(int count) {
-            return _clause.limit(count);
+        public Final limit(int count) {
+            return _final.limit(count);
         }
 
         @Override
-        public Clause limit(int offset, int count) {
-            return _clause.limit(offset, count);
+        public Final limit(int offset, int count) {
+            return _final.limit(offset, count);
         }
 
         @Override
-        public Clause orderByAscend(String columnName) {
-            return _clause.orderByAscend(columnName);
+        public Final orderByAscend(String columnName) {
+            return _final.orderByAscend(columnName);
         }
 
         @Override
-        public Clause orderByDescend(String columnName) {
-            return _clause.orderByDescend(columnName);
+        public Final orderByAscend(ISqlTable table, String columnName) {
+            return _final.orderByAscend(table, columnName);
+        }
+
+        @Override
+        public Final orderByDescend(String columnName) {
+            return _final.orderByDescend(columnName);
+        }
+
+        @Override
+        public Final orderByDescend(ISqlTable table, String columnName) {
+            return _final.orderByDescend(table, columnName);
+        }
+
+        @Override
+        public Final orderBy(String columnName, SqlOrder order) {
+            return _final.orderBy(columnName, order);
+        }
+
+        @Override
+        public Final orderBy(ISqlTable table, String columnName, SqlOrder order) {
+            return _final.orderBy(table, columnName, order);
+        }
+
+        @Override
+        public Final orderBy(IOrderGenerator orderGenerator) {
+            return _final.orderBy(orderGenerator);
+        }
+    }
+
+    private class Final implements ISqlSelectFinal {
+
+        boolean isLimited;
+        boolean isOrdered;
+
+        @Override
+        public Final limit(int count) {
+            PreCon.positiveNumber(count);
+            PreCon.isValid(!_isSelectInto, "LIMIT is not supported by the SELECT INTO statement.");
+            PreCon.isValid(!isLimited, "LIMIT has already been set.");
+
+            isLimited = true;
+
+            statement()
+                    .append(" LIMIT ")
+                    .append(count);
+
+            return this;
+        }
+
+        @Override
+        public Final limit(int offset, int count) {
+            PreCon.positiveNumber(offset);
+            PreCon.positiveNumber(count);
+            PreCon.isValid(!_isSelectInto, "LIMIT is not supported by the SELECT INTO statement.");
+            PreCon.isValid(!isLimited, "LIMIT has already been set.");
+
+            isLimited = true;
+
+            statement()
+                    .append(" LIMIT ")
+                    .append(offset)
+                    .append(',')
+                    .append(count);
+
+            return this;
+        }
+
+        @Override
+        public Final orderByAscend(String columnName) {
+            return orderBy(_table, columnName, SqlOrder.ASCENDING);
+        }
+
+        @Override
+        public Final orderByAscend(ISqlTable table, String columnName) {
+            return orderBy(table, columnName, SqlOrder.ASCENDING);
+        }
+
+        @Override
+        public Final orderByDescend(String columnName) {
+            return orderBy(_table, columnName, SqlOrder.DESCENDING);
+        }
+
+        @Override
+        public Final orderByDescend(ISqlTable table, String columnName) {
+            return orderBy(table, columnName, SqlOrder.DESCENDING);
+        }
+
+        @Override
+        public Final orderBy(String columnName, SqlOrder order) {
+            return orderBy(_table, columnName, order);
+        }
+
+        @Override
+        public Final orderBy(ISqlTable table, String columnName, SqlOrder order) {
+            PreCon.notNull(table);
+            PreCon.notNullOrEmpty(columnName);
+            PreCon.notNull(order);
+
+            appendOrder(table, columnName, order);
+
+            return this;
+        }
+
+        @Override
+        public Final orderBy(IOrderGenerator orderGenerator) {
+            PreCon.notNull(orderGenerator);
+            PreCon.isValid(!_isSelectInto, "Column order is not supported by the SELECT INTO statement.");
+
+            SqlColumnOrder[] orders = orderGenerator.getOrder(_table);
+
+            for (SqlColumnOrder order : orders) {
+                appendOrder(order.getTable(), order.getColumnName(), order.getOrder());
+            }
+
+            return this;
+        }
+
+        @Override
+        public IFutureResult<ISqlResult> execute() {
+            return Select.this.execute();
+        }
+
+        @Override
+        public ISqlNextStatementBuilder endStatement() {
+            return Select.this.endStatement();
+        }
+
+        @Override
+        public ISqlNextStatementBuilder setTable(ISqlTable table) {
+            return Select.this.setTable(table);
+        }
+
+        @Override
+        public PreparedStatement[] prepareStatements() throws SQLException {
+            return Select.this.prepareStatements();
+        }
+
+        @Override
+        public ISqlStatement getStatement() {
+            return Select.this.getStatement();
+        }
+
+        @Override
+        public IFutureResult<ISqlResult> addToTransaction(ISqlTransaction transaction) {
+            return Select.this.addToTransaction(transaction);
+        }
+
+        @Override
+        public ISqlBuildOrExecute commitTransaction() {
+            return Select.this.commitTransaction();
+        }
+
+        private void appendOrder(ISqlTable table, String columnName, SqlOrder order) {
+            if (isOrdered) {
+                statement().append(',');
+            } else {
+                statement().append(" ORDER BY ");
+            }
+
+            statement()
+                    .append('`')
+                    .append(table.getName())
+                    .append("`.`")
+                    .append(columnName)
+                    .append('`');
+
+            switch (order) {
+                case ASCENDING:
+                    statement().append(" ASC");
+                    break;
+                case DESCENDING:
+                    statement().append(" DESC");
+                    break;
+            }
+
+            isOrdered = true;
         }
     }
 }

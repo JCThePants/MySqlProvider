@@ -133,21 +133,43 @@ public class Delete implements ISqlDelete {
     }
 
     @Override
-    public Operator where(String columnName) {
-        PreCon.notNullOrEmpty(columnName);
+    public Operator where(String column) {
+        PreCon.notNullOrEmpty(column);
         assertNotFinalized();
 
         statement()
-                .append(" WHERE ")
-                .append(columnName);
+                .append(" WHERE `")
+                .append(column)
+                .append('`');
 
-        _operator.currentColumn = columnName;
+        _operator.currentColumn = column;
+        return _operator;
+    }
+
+    @Override
+    public Operator where(ISqlTable table, String column) {
+        PreCon.notNullOrEmpty(column);
+        assertNotFinalized();
+
+        statement()
+                .append(" WHERE `")
+                .append(table.getName())
+                .append("`.`")
+                .append(column)
+                .append('`');
+
+        _operator.currentColumn = column;
         return _operator;
     }
 
     @Override
     public IFutureResult<ISqlResult> execute() {
         finalizeStatement();
+
+        if (_table.getDefinition().isTemp()) {
+            throw new IllegalStateException(
+                    "Cannot execute statement on a temporary table outside of a transaction.");
+        }
 
         return MySqlProvider.getProvider().execute(_statement.getFinalized());
     }

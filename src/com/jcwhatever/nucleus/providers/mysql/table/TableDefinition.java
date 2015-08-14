@@ -4,10 +4,10 @@ import com.jcwhatever.nucleus.collections.ArrayQueue;
 import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition;
 import com.jcwhatever.nucleus.utils.PreCon;
 
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
-import javax.annotation.Nullable;
 
 /**
  * Implementation of {@link ISqlTableDefinition}.
@@ -20,6 +20,7 @@ public class TableDefinition implements ISqlTableDefinition {
     private final ISqlTableColumn _primary;
     private final String _engine;
     private final Map<String, ISqlTableColumn> _map;
+    private final boolean _isTempTable;
 
     /**
      * Constructor.
@@ -27,11 +28,12 @@ public class TableDefinition implements ISqlTableDefinition {
      * @param columns  The tables column definitions.
      * @param engine   The preferred database engine.
      */
-    TableDefinition(ISqlTableColumn[] columns, @Nullable String engine) {
+    TableDefinition(ISqlTableColumn[] columns, @Nullable String engine, boolean isTempTable) {
         _columns = columns;
         _engine = engine;
         _map = new HashMap<>(columns.length);
         _columnNames = new String[columns.length];
+        _isTempTable = isTempTable;
 
         ISqlTableColumn primary = null;
 
@@ -107,5 +109,10 @@ public class TableDefinition implements ISqlTableDefinition {
     @Override
     public String getEngineName() {
         return _engine;
+    }
+
+    @Override
+    public boolean isTemp() {
+        return _isTempTable;
     }
 }

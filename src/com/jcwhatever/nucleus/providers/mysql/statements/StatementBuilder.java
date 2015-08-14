@@ -7,13 +7,14 @@ import com.jcwhatever.nucleus.providers.sql.ISqlTable;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlStatement;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlStatementBuilder;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlTransaction;
+import com.jcwhatever.nucleus.providers.sql.statement.generators.IColumnNameGenerator;
 import com.jcwhatever.nucleus.providers.sql.statement.mixins.ISqlBuildOrExecute;
 import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.observer.future.IFutureResult;
 
+import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import javax.annotation.Nullable;
 
 /*
  * 
@@ -51,6 +52,13 @@ public class StatementBuilder implements ISqlStatementBuilder,
     }
 
     @Override
+    public Select selectRows(IColumnNameGenerator nameGenerator) {
+        PreCon.notNull(nameGenerator);
+
+        return new Select(_table, nameGenerator.getColumnNames(_table), _statement);
+    }
+
+    @Override
     public Update updateRow() {
         return new Update(_table, _statement);
     }
@@ -68,6 +76,18 @@ public class StatementBuilder implements ISqlStatementBuilder,
     @Override
     public Insert insertRows(String... columns) {
         return new Insert(_table, columns, _statement);
+    }
+
+    @Override
+    public Insert insertRows(IColumnNameGenerator nameGenerator) {
+        PreCon.notNull(nameGenerator);
+
+        return new Insert(_table, nameGenerator.getColumnNames(_table), _statement);
+    }
+
+    @Override
+    public InsertInto insertInto(ISqlTable table) {
+        return new InsertInto(_table, table.getName(), _statement);
     }
 
     @Override

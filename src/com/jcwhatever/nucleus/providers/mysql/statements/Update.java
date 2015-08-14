@@ -11,13 +11,20 @@ import com.jcwhatever.nucleus.providers.sql.ISqlTable;
 import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition.ISqlTableColumn;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlStatement;
 import com.jcwhatever.nucleus.providers.sql.statement.ISqlTransaction;
+import com.jcwhatever.nucleus.providers.sql.statement.generators.IOrderGenerator;
+import com.jcwhatever.nucleus.providers.sql.statement.generators.SqlColumnOrder;
+import com.jcwhatever.nucleus.providers.sql.SqlOrder;
 import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdate;
 import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateClause;
 import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateFinal;
+import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateJoinClause;
 import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateLogicalOperator;
 import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateOperator;
+import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateSetter;
+import com.jcwhatever.nucleus.providers.sql.statement.update.ISqlUpdateSetterOperator;
 import com.jcwhatever.nucleus.utils.PreCon;
 import com.jcwhatever.nucleus.utils.observer.future.IFutureResult;
+import com.jcwhatever.nucleus.utils.text.TextUtils;
 
 import javax.annotation.Nullable;
 import java.sql.PreparedStatement;
@@ -38,11 +45,15 @@ public class Update implements ISqlUpdate {
     private final BoolOperator _boolOperator;
     private final Clause _clause = new Clause();
     private final Final _final = new Final();
+    private final JoinClause _joinClause = new JoinClause();
+    private final SetterOperator _setterOperator = new SetterOperator();
 
     private List<CompoundValue> _compoundValues;
     private int _setCount = 0;
     private boolean _isFinalized;
     private FinalizedStatement _finalized;
+    private boolean _isSetAppended;
+    private String _currentJoinTable;
 
     /**
      * Constructor.
@@ -66,8 +77,9 @@ public class Update implements ISqlUpdate {
         _compoundValues = totalCompound > 0 ? new ArrayList<CompoundValue>(totalCompound) : null;
 
         statement()
-                .append("UPDATE ")
-                .append(_table.getName());
+                .append("UPDATE `")
+                .append(_table.getName())
+                .append('`');
 
         if (totalCompound > 0) {
 
@@ -86,41 +98,95 @@ public class Update implements ISqlUpdate {
 
                 //noinspection ConstantConditions
                 statement()
-                        .append(" LEFT JOIN ")
+                        .append(" LEFT JOIN `")
                         .append(handlerTable.getName())
-                        .append(' ')
-                        .append(handlerTable.getName())
-                        .append('_')
-                        .append(column.getName())
-                        .append(" ON ")
+                        .append("` `")
                         .append(handlerTable.getName())
                         .append('_')
                         .append(column.getName())
-                        .append('.')
+                        .append("` ON `")
+                        .append(handlerTable.getName())
+                        .append('_')
+                        .append(column.getName())
+                        .append("`.`")
                         .append(handlerTable.getDefinition().getPrimaryKey().getName())
-                        .append('=')
+                        .append("`=`")
                         .append(table.getName())
-                        .append('.')
-                        .append(column.getName());
+                        .append("`.`")
+                        .append(column.getName())
+                        .append('`');
             }
         }
-
-        statement().append(" SET ");
     }
 
     @Override
-    public Final set(String columnName, @Nullable Object value) {
-        return _final.set(columnName, value);
+    public SetterOperator set(String column) {
+        return _final.set(column);
     }
 
     @Override
-    public Final setColumn(String columnName, String otherColumnName) {
-        return _final.setColumn(columnName, otherColumnName);
+    public SetterOperator set(ISqlTable table, String column) {
+        return _final.set(table, column);
+    }
+
+    @Override
+    public JoinClause innerJoin(ISqlTable table) {
+        PreCon.notNull(table);
+        assertNotFinalized();
+
+        //noinspection ConstantConditions
+        statement()
+                .append(" INNER JOIN `")
+                .append(table.getName())
+                .append('`');
+
+        _currentJoinTable = '`' + table.getName() + '`';
+
+        return _joinClause;
+    }
+
+    @Override
+    public JoinClause leftJoin(ISqlTable table) {
+        PreCon.notNull(table);
+        assertNotFinalized();
+
+        statement()
+                .append(" LEFT JOIN `")
+                .append(table.getName())
+                .append('`');
+
+        _currentJoinTable = '`' + table.getName() + '`';
+
+        return _joinClause;
+    }
+
+    @Override
+    public JoinClause rightJoin(ISqlTable table) {
+        PreCon.notNull(table);
+        assertNotFinalized();
+
+        statement()
+                .append(" RIGHT JOIN `")
+                .append(table.getName())
+                .append('`');
+
+        _currentJoinTable = '`' + table.getName() + '`';
+
+        return _joinClause;
     }
 
     @Override
     public String toString() {
         return _statement.toString();
+    }
+
+    private boolean isName(String name) {
+        for (int i=0; i < name.length(); i++) {
+            if (".+-<>= ".indexOf(name.charAt(i)) != -1) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void assertNotFinalized() {
@@ -149,6 +215,15 @@ public class Update implements ISqlUpdate {
 
     private List<Object> values() {
         return _statement.getValues();
+    }
+
+    private void appendSet() {
+
+        if (_isSetAppended)
+            return;
+
+        _isSetAppended = true;
+        statement().append(" SET ");
     }
 
     private class Operator extends AbstractOperator<ISqlUpdateLogicalOperator>
@@ -187,8 +262,33 @@ public class Update implements ISqlUpdate {
         }
 
         @Override
+        public Clause orderByAscend(ISqlTable table, String columnName) {
+            return _clause.orderByAscend(table, columnName);
+        }
+
+        @Override
         public Clause orderByDescend(String columnName) {
             return _clause.orderByDescend(columnName);
+        }
+
+        @Override
+        public Clause orderByDescend(ISqlTable table, String columnName) {
+            return _clause.orderByDescend(table, columnName);
+        }
+
+        @Override
+        public Clause orderBy(String columnName, SqlOrder order) {
+            return _clause.orderBy(columnName, order);
+        }
+
+        @Override
+        public Clause orderBy(ISqlTable table, String columnName, SqlOrder order) {
+            return _clause.orderBy(table, columnName, order);
+        }
+
+        @Override
+        public Clause orderBy(IOrderGenerator orderGenerator) {
+            return _clause.orderBy(orderGenerator);
         }
 
         @Override
@@ -250,7 +350,7 @@ public class Update implements ISqlUpdate {
     private class Clause implements ISqlUpdateClause {
 
         boolean hasLimit;
-        boolean hasOrder;
+        boolean isOrdered;
 
         @Override
         public Clause limit(int count) {
@@ -268,21 +368,50 @@ public class Update implements ISqlUpdate {
 
         @Override
         public Clause orderByAscend(String columnName) {
-            PreCon.notNullOrEmpty(columnName);
-            assertNotFinalized();
+            return orderBy(_table, columnName, SqlOrder.ASCENDING);
+        }
 
-            appendOrder(columnName);
-            statement().append(" ASC");
-            return this;
+        @Override
+        public Clause orderByAscend(ISqlTable table, String columnName) {
+            return orderBy(table, columnName, SqlOrder.ASCENDING);
         }
 
         @Override
         public Clause orderByDescend(String columnName) {
-            PreCon.notNullOrEmpty(columnName);
-            assertNotFinalized();
+            return orderBy(_table, columnName, SqlOrder.DESCENDING);
+        }
 
-            appendOrder(columnName);
-            statement().append(" DESC");
+        @Override
+        public Clause orderByDescend(ISqlTable table, String columnName) {
+            return orderBy(table, columnName, SqlOrder.DESCENDING);
+        }
+
+        @Override
+        public Clause orderBy(String columnName, SqlOrder order) {
+            return orderBy(_table, columnName, order);
+        }
+
+        @Override
+        public Clause orderBy(ISqlTable table, String columnName, SqlOrder order) {
+            PreCon.notNull(table);
+            PreCon.notNullOrEmpty(columnName);
+            PreCon.notNull(order);
+
+            appendOrder(table, columnName, order);
+
+            return this;
+        }
+
+        @Override
+        public Clause orderBy(IOrderGenerator orderGenerator) {
+            PreCon.notNull(orderGenerator);
+
+            SqlColumnOrder[] orders = orderGenerator.getOrder(_table);
+
+            for (SqlColumnOrder order : orders) {
+                appendOrder(order.getTable(), order.getColumnName(), order.getOrder());
+            }
+
             return this;
         }
 
@@ -326,54 +455,91 @@ public class Update implements ISqlUpdate {
             return _final.toString();
         }
 
-        private void appendOrder(String columnName) {
-            if (hasOrder) {
-                statement().append(", ");
-            }
-            else {
+        private void appendOrder(ISqlTable table, String columnName, SqlOrder order) {
+            if (isOrdered) {
+                statement().append(',');
+            } else {
                 statement().append(" ORDER BY ");
             }
 
-            statement().append(columnName);
-            hasOrder = true;
+            statement()
+                    .append('`')
+                    .append(table.getName())
+                    .append("`.`")
+                    .append(columnName)
+                    .append('`');
+
+            switch (order) {
+                case ASCENDING:
+                    statement().append(" ASC");
+                    break;
+                case DESCENDING:
+                    statement().append(" DESC");
+                    break;
+            }
+
+            isOrdered = true;
         }
     }
 
-    private class Final implements ISqlUpdateFinal {
+    private class JoinClause implements ISqlUpdateJoinClause {
 
         @Override
-        public Operator where(String column) {
+        public ISqlUpdateSetter on(String column) {
             PreCon.notNullOrEmpty(column);
-            assertNotFinalized();
 
-            statement()
-                    .append(" WHERE ")
-                    .append(column);
+            String[] nameArray = TextUtils.PATTERN_DOT.split(column);
+            String name = nameArray[nameArray.length - 1];
 
-            return _operator;
+            return on(name, name);
         }
 
         @Override
-        public Final set(String columnName, @Nullable Object value) {
-            PreCon.notNullOrEmpty(columnName);
-            assertNotFinalized();
+        public ISqlUpdateSetter on(String column, String otherColumn) {
+            PreCon.notNullOrEmpty(column);
+            PreCon.notNullOrEmpty(otherColumn);
 
-            ISqlTableColumn column = _table.getDefinition().getColumn(columnName);
-            if (column == null) {
-                throw new IllegalArgumentException("A column named" + columnName +
-                        " is not defined in table " + _table.getName());
+            statement().append(" ON ");
+
+            if (isName(column)) {
+                statement()
+                        .append(_currentJoinTable)
+                        .append(".`")
+                        .append(column)
+                        .append("`=");
+            }
+            else {
+                statement().append(column);
             }
 
-            if (_setCount > 0)
-                statement().append(',');
+            if (isName(otherColumn)) {
+                statement()
+                        .append('`')
+                        .append(_table.getName())
+                        .append("`.`")
+                        .append(otherColumn)
+                        .append('`');
+            }
+            else {
+                statement().append(otherColumn);
+            }
 
-            if (_compoundValues != null && column.getDataType().isCompound()) {
+            return Update.this;
+        }
+    }
+
+    private class SetterOperator implements ISqlUpdateSetterOperator {
+
+        @Override
+        public Final value(@Nullable Object value) {
+
+            if (_compoundValues != null && _final.currentSetterColumn.getDataType().isCompound()) {
 
                 CompoundDataManager manager = _table.getDatabase().getCompoundManager();
-                ICompoundDataHandler handler = manager.getHandler(column.getDataType());
+                ICompoundDataHandler handler = manager.getHandler(_final.currentSetterColumn.getDataType());
                 if (handler == null) {
                     throw new UnsupportedOperationException("Data type not supported: "
-                            + column.getDataType().getName());
+                            + _final.currentSetterColumn.getDataType().getName());
                 }
 
                 ICompoundDataIterator iterator = handler.dataIterator(value);
@@ -381,12 +547,13 @@ public class Update implements ISqlUpdate {
                 while (iterator.next()) {
 
                     statement()
+                            .append('`')
                             .append(handler.getTable().getName())
                             .append('_')
-                            .append(column.getName())
-                            .append('.')
+                            .append(_final.currentSetterColumn.getName())
+                            .append("`.`")
                             .append(iterator.getColumnName())
-                            .append("=?");
+                            .append("`=?");
 
                     values(iterator.getValue());
 
@@ -397,9 +564,7 @@ public class Update implements ISqlUpdate {
             }
             else {
 
-                statement()
-                        .append(columnName)
-                        .append('=');
+                appendStart();
 
                 if (value == null) {
                     statement().append("DEFAULT");
@@ -410,31 +575,225 @@ public class Update implements ISqlUpdate {
                 }
             }
 
-            _setCount++;
-
-            return this;
+            return _final;
         }
 
         @Override
-        public Final setColumn(String columnName, String otherColumnName) {
-            PreCon.notNullOrEmpty(columnName);
-            PreCon.notNullOrEmpty(otherColumnName);
-            assertNotFinalized();
+        public Final equalsColumn(String column) {
+            return equalsColumn(_table, column);
+        }
 
-            if (!values().isEmpty())
-                statement().append(',');
+        @Override
+        public Final equalsColumn(ISqlTable table, String column) {
+            PreCon.notNull(column);
+            PreCon.notNullOrEmpty(column);
+
+            appendStart();
 
             statement()
-                    .append(columnName)
-                    .append('=')
-                    .append(otherColumnName);
+                    .append('`')
+                    .append(table.getName())
+                    .append("`.`")
+                    .append(column)
+                    .append('`');
 
-            return this;
+            return _final;
+        }
+
+        @Override
+        public Final add(int amount) {
+
+            appendStart();
+
+            statement()
+                    .append('`')
+                    .append(_final.currentSetterTable.getName())
+                    .append("`.`")
+                    .append(_final.currentSetterColumn.getName())
+                    .append("`+")
+                    .append(amount);
+
+            return _final;
+        }
+
+        @Override
+        public Final add(double amount) {
+
+            appendStart();
+
+            statement()
+                    .append('`')
+                    .append(_final.currentSetterTable.getName())
+                    .append("`.`")
+                    .append(_final.currentSetterColumn.getName())
+                    .append("`+")
+                    .append(amount);
+
+            return _final;
+        }
+
+        @Override
+        public Final addColumn(String column) {
+            return addColumn(_table, column);
+        }
+
+        @Override
+        public Final addColumn(ISqlTable table, String column) {
+            PreCon.notNull(table);
+            PreCon.notNullOrEmpty(column);
+
+            appendStart();
+
+            statement()
+                    .append('`')
+                    .append(_final.currentSetterTable.getName())
+                    .append("`.`")
+                    .append(_final.currentSetterColumn.getName())
+                    .append("`+`")
+                    .append(table.getName())
+                    .append("`.`")
+                    .append(column)
+                    .append('`');
+
+            return _final;
+        }
+
+        @Override
+        public Final subtract(int amount) {
+            appendStart();
+
+            statement()
+                    .append('`')
+                    .append(_final.currentSetterTable.getName())
+                    .append("`.`")
+                    .append(_final.currentSetterColumn.getName())
+                    .append("`-")
+                    .append(amount);
+
+            return _final;
+        }
+
+        @Override
+        public Final subtract(double amount) {
+            appendStart();
+
+            statement()
+                    .append('`')
+                    .append(_final.currentSetterTable.getName())
+                    .append("`.`")
+                    .append(_final.currentSetterColumn.getName())
+                    .append("`-")
+                    .append(amount);
+
+            return _final;
+        }
+
+        @Override
+        public Final subtractColumn(String column) {
+            return subtractColumn(_table, column);
+        }
+
+        @Override
+        public Final subtractColumn(ISqlTable table, String column) {
+            PreCon.notNull(table);
+            PreCon.notNullOrEmpty(column);
+
+            appendStart();
+
+            statement()
+                    .append('`')
+                    .append(_final.currentSetterTable.getName())
+                    .append("`.`")
+                    .append(_final.currentSetterColumn.getName())
+                    .append("`-`")
+                    .append(table.getName())
+                    .append("`.`")
+                    .append(column)
+                    .append('`');
+
+            return _final;
+        }
+
+        private void appendStart() {
+            statement()
+                    .append('`')
+                    .append(_final.currentSetterTable.getName())
+                    .append("`.`")
+                    .append(_final.currentSetterColumn.getName())
+                    .append("`=");
+        }
+    }
+
+    private class Final implements ISqlUpdateFinal {
+
+        ISqlTable currentSetterTable;
+        ISqlTableColumn currentSetterColumn;
+
+        @Override
+        public SetterOperator set(String column) {
+            return set(_table, column);
+        }
+
+        @Override
+        public SetterOperator set(ISqlTable table, String column) {
+            PreCon.notNull(table);
+            PreCon.notNullOrEmpty(column);
+            assertNotFinalized();
+
+            appendSet();
+
+            currentSetterColumn = _table.getDefinition().getColumn(column);
+            if (currentSetterColumn == null) {
+                throw new IllegalArgumentException("A column named" + column +
+                        " is not defined in table " + _table.getName());
+            }
+            currentSetterTable = table;
+
+            if (_setCount > 0)
+                statement().append(',');
+
+            _setCount++;
+
+            return _setterOperator;
+        }
+
+        @Override
+        public Operator where(String column) {
+            PreCon.notNullOrEmpty(column);
+            assertNotFinalized();
+
+            statement()
+                    .append(" WHERE `")
+                    .append(column)
+                    .append('`');
+
+            return _operator;
+        }
+
+        @Override
+        public ISqlUpdateOperator where(ISqlTable table, String column) {
+            PreCon.notNull(table);
+            PreCon.notNullOrEmpty(column);
+            assertNotFinalized();
+
+            statement()
+                    .append(" WHERE `")
+                    .append(table.getName())
+                    .append("`.`")
+                    .append(column)
+                    .append('`');
+
+            return _operator;
         }
 
         @Override
         public IFutureResult<ISqlResult> execute() {
             finalizeStatement();
+
+            if (_table.getDefinition().isTemp()) {
+                throw new IllegalStateException(
+                        "Cannot execute statement on a temporary table outside of a transaction.");
+            }
 
             return MySqlProvider.getProvider().execute(_statement.getFinalized());
         }
