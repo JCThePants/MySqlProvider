@@ -714,6 +714,78 @@ public class Update implements ISqlUpdate {
             return _final;
         }
 
+        @Override
+        public Final largerColumn(ISqlTable table, String column) {
+            return largerColumn(_final.currentSetterTable, _final.currentSetterColumn.getName(), table, column);
+        }
+
+        @Override
+        public Final largerColumn(ISqlTable table1, String column1,
+                                   ISqlTable table2, String column2) {
+            PreCon.notNull(table1);
+            PreCon.notNullOrEmpty(column1);
+            PreCon.notNull(table2);
+            PreCon.notNullOrEmpty(column2);
+
+            statement()
+                    .append("IF (")
+                    .append('`')
+                    .append(table1.getName())
+                    .append("`.`")
+                    .append(column1)
+                    .append("`>`")
+                    .append(table2.getName())
+                    .append("`.`")
+                    .append(column2)
+                    .append("`,`")
+                    .append(table1.getName())
+                    .append("`.`")
+                    .append(column1)
+                    .append("`,`")
+                    .append(table2.getName())
+                    .append("`.`")
+                    .append(column2)
+                    .append("`)");
+
+            return _final;
+        }
+
+        @Override
+        public Final smallerColumn(ISqlTable table, String column) {
+            return largerColumn(_final.currentSetterTable, _final.currentSetterColumn.getName(), table, column);
+        }
+
+        @Override
+        public Final smallerColumn(ISqlTable table1, String column1,
+                                    ISqlTable table2, String column2) {
+            PreCon.notNull(table1);
+            PreCon.notNullOrEmpty(column1);
+            PreCon.notNull(table2);
+            PreCon.notNullOrEmpty(column2);
+
+            statement()
+                    .append("IF (")
+                    .append('`')
+                    .append(table1.getName())
+                    .append("`.`")
+                    .append(column1)
+                    .append("`<`")
+                    .append(table2.getName())
+                    .append("`.`")
+                    .append(column2)
+                    .append("`,`")
+                    .append(table1.getName())
+                    .append("`.`")
+                    .append(column1)
+                    .append("`,`")
+                    .append(table2.getName())
+                    .append("`.`")
+                    .append(column2)
+                    .append("`)");
+
+            return _final;
+        }
+
         private void appendStart() {
             statement()
                     .append('`')

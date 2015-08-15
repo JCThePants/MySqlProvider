@@ -947,6 +947,80 @@ public class InsertInto implements ISqlInsertInto {
             _exists.hasValues = true;
             return _exists;
         }
+
+        @Override
+        public Exists largerColumn(ISqlTable table, String column) {
+            return largerColumn(_exists.currentTable, _exists.currentSetterColumn.getName(), table, column);
+        }
+
+        @Override
+        public Exists largerColumn(ISqlTable table1, String column1,
+                                   ISqlTable table2, String column2) {
+            PreCon.notNull(table1);
+            PreCon.notNullOrEmpty(column1);
+            PreCon.notNull(table2);
+            PreCon.notNullOrEmpty(column2);
+
+            statement()
+                    .append("IF (")
+                    .append('`')
+                    .append(table1.getName())
+                    .append("`.`")
+                    .append(column1)
+                    .append("`>`")
+                    .append(table2.getName())
+                    .append("`.`")
+                    .append(column2)
+                    .append("`,`")
+                    .append(table1.getName())
+                    .append("`.`")
+                    .append(column1)
+                    .append("`,`")
+                    .append(table2.getName())
+                    .append("`.`")
+                    .append(column2)
+                    .append("`)");
+
+            _exists.hasValues = true;
+            return _exists;
+        }
+
+        @Override
+        public Exists smallerColumn(ISqlTable table, String column) {
+            return smallerColumn(_exists.currentTable, _exists.currentSetterColumn.getName(), table, column);
+        }
+
+        @Override
+        public Exists smallerColumn(ISqlTable table1, String column1,
+                                    ISqlTable table2, String column2) {
+            PreCon.notNull(table1);
+            PreCon.notNullOrEmpty(column1);
+            PreCon.notNull(table2);
+            PreCon.notNullOrEmpty(column2);
+
+            statement()
+                    .append("IF (")
+                    .append('`')
+                    .append(table1.getName())
+                    .append("`.`")
+                    .append(column1)
+                    .append("`<`")
+                    .append(table2.getName())
+                    .append("`.`")
+                    .append(column2)
+                    .append("`,`")
+                    .append(table1.getName())
+                    .append("`.`")
+                    .append(column1)
+                    .append("`,`")
+                    .append(table2.getName())
+                    .append("`.`")
+                    .append(column2)
+                    .append("`)");
+
+            _exists.hasValues = true;
+            return _exists;
+        }
     }
 
     private class Exists implements ISqlInsertIntoExists {
