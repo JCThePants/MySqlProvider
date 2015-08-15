@@ -192,10 +192,6 @@ public class StatementExecutor implements IDisposable {
                     result.addResults(statementResult);
                     statementResults.add(statementResult);
                 }
-
-                connection.commit();
-                connection.setAutoCommit(true);
-
                 isSuccess = true;
             }
             catch (SQLException e) {
@@ -205,12 +201,20 @@ public class StatementExecutor implements IDisposable {
             }
 
             try {
+                connection.commit();
+                connection.setAutoCommit(true);
+            }
+            catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            try {
                 // remove temp tables
                 Collection<Table> tables = transaction.getTempTables();
                 for (Table table : tables) {
 
                     PreparedStatement statement = connection.prepareStatement(
-                            "DROP TEMPORARY TABLE IF EXISTS " + table.getName());
+                            "DROP TEMPORARY TABLE IF EXISTS `" + table.getName() + '`');
 
                     statement.execute();
                     table.setRemoved();
