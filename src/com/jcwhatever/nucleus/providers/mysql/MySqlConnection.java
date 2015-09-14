@@ -382,10 +382,7 @@ public class MySqlConnection implements Connection {
                     connection.close();
 
                     Connection connection2 = createConnection();
-
-                    synchronized (getSync()) {
-                        singletons().put(Thread.currentThread(), connection2);
-                    }
+                    reset(connection2);
                     return connection2;
                 }
 
@@ -395,11 +392,6 @@ public class MySqlConnection implements Connection {
             }
 
             return connection;
-        }
-
-        @Override
-        protected Connection getMainSingleton(ISingletonFactory<Connection> factory) {
-            return null;
         }
     }
 }
