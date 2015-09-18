@@ -1,7 +1,6 @@
 package com.jcwhatever.nucleus.providers.mysql.statements;
 
 import com.jcwhatever.nucleus.Nucleus;
-import com.jcwhatever.nucleus.collections.ArrayQueue;
 import com.jcwhatever.nucleus.managed.scheduler.Scheduler;
 import com.jcwhatever.nucleus.mixins.IDisposable;
 import com.jcwhatever.nucleus.providers.mysql.statements.FinalizedStatements.ExecuteResult;
@@ -13,6 +12,7 @@ import com.jcwhatever.nucleus.utils.observer.future.FutureResultAgent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -38,7 +38,7 @@ public class StatementExecutor implements IDisposable {
         PreCon.positiveNumber(totalExecutors);
 
         _executors = new MySqlExecutorAsync[totalExecutors];
-        _results = new ArrayQueue<>(25 * totalExecutors);
+        _results = new ArrayDeque<>(25 * totalExecutors);
 
         for (int i=0; i < totalExecutors; i++) {
             MySqlExecutorAsync executor = new MySqlExecutorAsync();
@@ -134,8 +134,8 @@ public class StatementExecutor implements IDisposable {
 
     private class MySqlExecutorAsync extends Thread {
 
-        final Queue<QueuedExecutable> queue = new ArrayQueue<>(25);
-        final Queue<QueuedExecutable> resultBuffer = new ArrayQueue<>(25);
+        final Queue<QueuedExecutable> queue = new ArrayDeque<>(25);
+        final Queue<QueuedExecutable> resultBuffer = new ArrayDeque<>(25);
 
         @Override
         public void run() {

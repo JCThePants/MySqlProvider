@@ -1,10 +1,10 @@
 package com.jcwhatever.nucleus.providers.mysql.table;
 
-import com.jcwhatever.nucleus.collections.ArrayQueue;
 import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition;
 import com.jcwhatever.nucleus.utils.PreCon;
 
 import javax.annotation.Nullable;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
@@ -37,7 +37,7 @@ public class TableDefinition implements ISqlTableDefinition {
 
         ISqlTableColumn primary = null;
 
-        Queue<ISqlTableColumn> compound = new ArrayQueue<>(columns.length);
+        Queue<ISqlTableColumn> compound = new ArrayDeque<>(columns.length);
 
         for (int i = 0; i < columns.length; i++) {
             ISqlTableColumn column = columns[i];

@@ -1,9 +1,9 @@
 package com.jcwhatever.nucleus.providers.mysql;
 
-import com.jcwhatever.nucleus.collections.ArrayQueue;
 import com.jcwhatever.nucleus.utils.ThreadSingletons;
 import com.jcwhatever.nucleus.utils.ThreadSingletons.ISingletonFactory;
 
+import java.util.ArrayDeque;
 import java.util.Queue;
 
 /**
@@ -17,7 +17,7 @@ public class TempBuffers {
             new ISingletonFactory<Queue<Object>>() {
                 @Override
                 public Queue<Object> create(Thread thread) {
-                    return new ArrayQueue<>(100);
+                    return new ArrayDeque<>(100);
                 }
             });
 

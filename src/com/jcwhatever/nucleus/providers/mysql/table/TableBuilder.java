@@ -1,12 +1,12 @@
 package com.jcwhatever.nucleus.providers.mysql.table;
 
-import com.jcwhatever.nucleus.collections.ArrayQueue;
 import com.jcwhatever.nucleus.providers.sql.ISqlDbType;
 import com.jcwhatever.nucleus.providers.sql.ISqlTableBuilder;
 import com.jcwhatever.nucleus.providers.sql.ISqlTableDefinition.ISqlTableColumn;
 import com.jcwhatever.nucleus.utils.PreCon;
 
 import javax.annotation.Nullable;
+import java.util.ArrayDeque;
 import java.util.Queue;
 
 /**
@@ -14,7 +14,7 @@ import java.util.Queue;
  */
 public class TableBuilder implements ISqlTableBuilder {
 
-    private final Queue<TableColumnDefinition> _columns = new ArrayQueue<>(10);
+    private final Queue<TableColumnDefinition> _columns = new ArrayDeque<>(10);
     private final Transact _transact = new Transact();
     private final Columns _columnConstraints = new Columns();
     private final Constraints _constraints = new Constraints();
