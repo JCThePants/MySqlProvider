@@ -125,7 +125,7 @@ public class MySqlProvider extends Provider implements ISqlProvider {
      * @param password  The connection password.
      */
     public String getConnectionString(String address, String dbName, String user, String password) {
-        return TextUtils.format(_connectionFormat, address, dbName, user, password);
+        return TextUtils.format(_connectionFormat, address, dbName, user, password).toString();
     }
 
     @Override
